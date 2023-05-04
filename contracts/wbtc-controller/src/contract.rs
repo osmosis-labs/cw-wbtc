@@ -5,12 +5,12 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
+use crate::core::{custodian, merchant};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
 };
-use crate::{custodian, merchant};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";

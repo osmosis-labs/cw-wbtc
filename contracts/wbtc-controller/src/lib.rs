@@ -1,7 +1,6 @@
 pub mod contract;
-mod custodian;
+mod core;
 mod error;
-mod merchant;
 pub mod msg;
 
 pub use crate::error::ContractError;
