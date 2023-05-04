@@ -51,10 +51,26 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        // Find matched incoming message variant and execute them with your custom logic.
-        //
-        // With `Response` type, it is possible to dispatch message to invoke external logic.
-        // See: https://github.com/CosmWasm/cosmwasm/blob/main/SEMANTICS.md#dispatching-messages
+        ExecuteMsg::SetCustodianDepositAddress {
+            merchant: _,
+            deposit_address: _,
+        } => todo!(),
+        ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
+        ExecuteMsg::AddMintRequest {
+            amount: _,
+            tx_id: _,
+            deposit_address: _,
+        } => todo!(),
+        ExecuteMsg::CancelMintRequest { request_hash: _ } => todo!(),
+        ExecuteMsg::ConfirmMintRequest { request_hash: _ } => todo!(),
+        ExecuteMsg::RejectMintRequest { request_hash: _ } => todo!(),
+        ExecuteMsg::Burn { amount: _ } => todo!(),
+        ExecuteMsg::ConfirmBurnRequest {
+            request_hash: _,
+            tx_id: _,
+        } => todo!(),
+        ExecuteMsg::Pause {} => todo!(),
+        ExecuteMsg::Unpause {} => todo!(),
     }
 }
 
@@ -62,11 +78,13 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        // Find matched incoming message variant and query them your custom logic
-        // and then construct your query response with the type usually defined
-        // `msg.rs` alongside with the query message itself.
-        //
-        // use `cosmwasm_std::to_binary` to serialize query response to json binary.
+        QueryMsg::GetMintRequest { nonce: _ } => todo!(),
+        QueryMsg::GetMintRequestsLength {} => todo!(),
+        QueryMsg::GetBurnRequest { nonce: _ } => todo!(),
+        QueryMsg::GetBurnRequestsLength {} => todo!(),
+        QueryMsg::GetTokenDenom {} => todo!(),
+        QueryMsg::IsMerchant { address: _ } => todo!(),
+        QueryMsg::IsCustodian { address: _ } => todo!(),
     }
 }
 
