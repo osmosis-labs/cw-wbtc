@@ -1,10 +1,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult};
+use cosmwasm_std::{
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+};
 use cw2::set_contract_version;
 
+use crate::custodian;
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, IsCustodianResponse, MigrateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
@@ -45,12 +48,13 @@ pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, C
 /// Handling contract execution
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &address),
         ExecuteMsg::SetCustodianDepositAddress {
             merchant: _,
             deposit_address: _,
@@ -71,12 +75,14 @@ pub fn execute(
         } => todo!(),
         ExecuteMsg::Pause {} => todo!(),
         ExecuteMsg::Unpause {} => todo!(),
+        ExecuteMsg::AddMerchant { address: _ } => todo!(),
+        ExecuteMsg::RemoveMerchant { address: _ } => todo!(),
     }
 }
 
 /// Handling contract query
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetMintRequest { nonce: _ } => todo!(),
         QueryMsg::GetMintRequestsLength {} => todo!(),
@@ -84,7 +90,9 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetBurnRequestsLength {} => todo!(),
         QueryMsg::GetTokenDenom {} => todo!(),
         QueryMsg::IsMerchant { address: _ } => todo!(),
-        QueryMsg::IsCustodian { address: _ } => todo!(),
+        QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
+            is_custodian: custodian::is_custodian(deps, &address)?,
+        }),
     }
 }
 

@@ -8,6 +8,15 @@ pub struct InstantiateMsg {}
 /// Message type for `execute` entry_point
 #[cw_serde]
 pub enum ExecuteMsg {
+    SetCustodian {
+        address: String,
+    },
+    AddMerchant {
+        address: String,
+    },
+    RemoveMerchant {
+        address: String,
+    },
     /// Set custodian BTC deposit address of the specified merchant
     SetCustodianDepositAddress {
         merchant: String,

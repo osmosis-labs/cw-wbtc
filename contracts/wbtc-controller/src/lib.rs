@@ -1,6 +1,6 @@
 pub mod contract;
+mod custodian;
 mod error;
 pub mod msg;
-pub mod state;
 
 pub use crate::error::ContractError;
