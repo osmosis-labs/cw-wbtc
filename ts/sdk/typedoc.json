@@ -1,0 +1,7 @@
+{
+  "out": "./docs",
+  "name": "cw-wbtc",
+  "theme": "markdown",
+  "readme": "none",
+  "tsconfig": "./tsconfig.bundle.json"
+}
