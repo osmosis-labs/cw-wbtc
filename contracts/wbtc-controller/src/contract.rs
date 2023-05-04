@@ -5,11 +5,12 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
-use crate::custodian;
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, MigrateMsg, QueryMsg,
+    ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
+    MigrateMsg, QueryMsg,
 };
+use crate::{custodian, merchant};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
@@ -52,7 +53,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, C
 pub fn execute(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
@@ -61,8 +62,8 @@ pub fn execute(
             merchant: _,
             deposit_address: _,
         } => todo!(),
-        ExecuteMsg::AddMerchant { address: _ } => todo!(),
-        ExecuteMsg::RemoveMerchant { address: _ } => todo!(),
+        ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, info, &address),
+        ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, info, &address),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
         ExecuteMsg::AddMintRequest {
             amount: _,
@@ -91,7 +92,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetBurnRequest { nonce: _ } => todo!(),
         QueryMsg::GetBurnRequestsLength {} => todo!(),
         QueryMsg::GetTokenDenom {} => todo!(),
-        QueryMsg::IsMerchant { address: _ } => todo!(),
+        QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
+            is_merchant: merchant::is_merchant(deps, &address)?,
+        }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &address)?,
         }),
