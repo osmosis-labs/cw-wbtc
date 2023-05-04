@@ -18,6 +18,10 @@ pub fn is_custodian(deps: Deps, address: &str) -> Result<bool, StdError> {
     Ok(custodian == deps.api.addr_validate(address)?)
 }
 
+pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
+    CUSTODIAN.load(deps.storage)
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::testing::mock_dependencies;
@@ -34,6 +38,9 @@ mod tests {
         let err = is_custodian(deps.as_ref(), &custodian_address).unwrap_err();
         assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
 
+        let err = get_custodian(deps.as_ref()).unwrap_err();
+        assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
+
         // set custodian
         assert_eq!(
             set_custodian(deps.as_mut(), &custodian_address)
@@ -43,6 +50,7 @@ mod tests {
         );
 
         // check after set will pass
+        assert_eq!(get_custodian(deps.as_ref()).unwrap(), custodian_address);
         assert_eq!(
             is_custodian(deps.as_ref(), &custodian_address).unwrap(),
             true

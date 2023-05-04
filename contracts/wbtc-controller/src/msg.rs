@@ -79,6 +79,9 @@ pub enum QueryMsg {
     /// IsCustodian
     #[returns(IsCustodianResponse)]
     IsCustodian { address: String },
+
+    #[returns(GetCustodianResponse)]
+    GetCustodian {},
 }
 
 #[cw_serde]
@@ -128,4 +131,9 @@ pub struct IsMerchantResponse {
 #[cw_serde]
 pub struct IsCustodianResponse {
     pub is_custodian: bool,
+}
+
+#[cw_serde]
+pub struct GetCustodianResponse {
+    pub address: String,
 }

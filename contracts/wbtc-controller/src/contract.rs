@@ -7,7 +7,9 @@ use cw2::set_contract_version;
 
 use crate::custodian;
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, IsCustodianResponse, MigrateMsg, QueryMsg};
+use crate::msg::{
+    ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, MigrateMsg, QueryMsg,
+};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
@@ -59,6 +61,8 @@ pub fn execute(
             merchant: _,
             deposit_address: _,
         } => todo!(),
+        ExecuteMsg::AddMerchant { address: _ } => todo!(),
+        ExecuteMsg::RemoveMerchant { address: _ } => todo!(),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
         ExecuteMsg::AddMintRequest {
             amount: _,
@@ -75,8 +79,6 @@ pub fn execute(
         } => todo!(),
         ExecuteMsg::Pause {} => todo!(),
         ExecuteMsg::Unpause {} => todo!(),
-        ExecuteMsg::AddMerchant { address: _ } => todo!(),
-        ExecuteMsg::RemoveMerchant { address: _ } => todo!(),
     }
 }
 
@@ -92,6 +94,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::IsMerchant { address: _ } => todo!(),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &address)?,
+        }),
+        QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
+            address: custodian::get_custodian(deps)?.to_string(),
         }),
     }
 }
