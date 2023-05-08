@@ -108,7 +108,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             address: custodian::get_custodian(deps)?.to_string(),
         }),
         QueryMsg::GetOwner {} => to_binary(&owner::get_owner(deps)?.to_string()),
-        QueryMsg::IsOwner { address } => to_binary(&owner::is_owner(deps, &address)?),
+        QueryMsg::IsOwner { address } => {
+            to_binary(&owner::is_owner(deps, &deps.api.addr_validate(&address)?)?)
+        }
     }
 }
 
