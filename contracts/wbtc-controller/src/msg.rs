@@ -74,7 +74,7 @@ pub enum QueryMsg {
     #[returns(GetBurnRequestsLengthResponse)]
     GetBurnRequestsLength {},
 
-    #[returns(GetTokenDenomResposne)]
+    #[returns(GetTokenDenomResponse)]
     GetTokenDenom {},
 
     /// IsMerchant
@@ -130,7 +130,7 @@ pub struct GetBurnRequestsLengthResponse {
 }
 
 #[cw_serde]
-pub struct GetTokenDenomResposne {
+pub struct GetTokenDenomResponse {
     pub denom: String,
 }
 
