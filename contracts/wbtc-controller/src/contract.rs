@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
-use crate::core::{custodian, merchant};
+use crate::auth::{custodian, merchant};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,

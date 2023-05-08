@@ -1,5 +1,5 @@
+mod auth;
 pub mod contract;
-mod core;
 mod error;
 pub mod msg;
 
