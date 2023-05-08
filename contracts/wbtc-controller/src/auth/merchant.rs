@@ -11,7 +11,7 @@ const MERCHANTS: Map<Addr, ()> = Map::new("merchants");
 
 pub fn add_merchant(
     deps: DepsMut,
-    info: MessageInfo,
+    info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
@@ -24,7 +24,7 @@ pub fn add_merchant(
 
 pub fn remove_merchant(
     deps: DepsMut,
-    info: MessageInfo,
+    info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
@@ -75,13 +75,17 @@ mod tests {
         );
 
         // add merchant by non owner should fail
-        let err =
-            add_merchant(deps.as_mut(), mock_info(non_owner, &[]), merchant_address_1).unwrap_err();
+        let err = add_merchant(
+            deps.as_mut(),
+            &mock_info(non_owner, &[]),
+            merchant_address_1,
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // add merchant 1
         assert_eq!(
-            add_merchant(deps.as_mut(), mock_info(owner, &[]), merchant_address_1)
+            add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
                 .events,
             vec![Event::new("add_merchant").add_attribute("address", merchant_address_1)]
@@ -98,7 +102,7 @@ mod tests {
 
         // add merchant 2
         assert_eq!(
-            add_merchant(deps.as_mut(), mock_info(owner, &[]), merchant_address_2)
+            add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_2)
                 .unwrap()
                 .events,
             vec![Event::new("add_merchant").add_attribute("address", merchant_address_2)]
@@ -114,13 +118,17 @@ mod tests {
         );
 
         // remove merchant by non_owner should fail
-        let err = remove_merchant(deps.as_mut(), mock_info(non_owner, &[]), merchant_address_1)
-            .unwrap_err();
+        let err = remove_merchant(
+            deps.as_mut(),
+            &mock_info(non_owner, &[]),
+            merchant_address_1,
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // remove merchant 1
         assert_eq!(
-            remove_merchant(deps.as_mut(), mock_info(owner, &[]), merchant_address_1)
+            remove_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
                 .events,
             vec![Event::new("remove_merchant").add_attribute("address", merchant_address_1)]

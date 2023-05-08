@@ -45,7 +45,7 @@ mod tests {
         // initialize merchant
         merchant::add_merchant(
             deps.as_mut(),
-            mock_info(owner_address, &[]),
+            &mock_info(owner_address, &[]),
             merchant_address,
         )
         .unwrap();
@@ -118,7 +118,7 @@ mod tests {
         // no error when address has all of the roles
 
         // add owner as merchant
-        merchant::add_merchant(deps.as_mut(), mock_info(owner_address, &[]), owner_address)
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner_address, &[]), owner_address)
             .unwrap();
         allow_only(
             &[Role::Owner, Role::Merchant],

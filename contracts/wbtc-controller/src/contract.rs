@@ -6,6 +6,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::auth::{custodian, merchant, owner};
+use crate::deposit_address::{self, set_custodian_deposit_address};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
@@ -65,11 +66,11 @@ pub fn execute(
         }
         ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
         ExecuteMsg::SetCustodianDepositAddress {
-            merchant: _,
-            deposit_address: _,
-        } => todo!(),
-        ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, info, &address),
-        ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, info, &address),
+            merchant,
+            deposit_address,
+        } => set_custodian_deposit_address(deps, &info, merchant.as_str(), &deposit_address),
+        ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
+        ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
         ExecuteMsg::AddMintRequest {
             amount: _,
@@ -110,6 +111,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetOwner {} => to_binary(&owner::get_owner(deps)?.to_string()),
         QueryMsg::IsOwner { address } => {
             to_binary(&owner::is_owner(deps, &deps.api.addr_validate(&address)?)?)
+        }
+        QueryMsg::GetCustodianDepositAddress { merchant } => {
+            to_binary(&deposit_address::get_custodian_deposit_address(
+                deps,
+                &deps.api.addr_validate(&merchant)?,
+            )?)
         }
     }
 }

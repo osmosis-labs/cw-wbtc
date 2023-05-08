@@ -1,5 +1,6 @@
 mod auth;
 pub mod contract;
+mod deposit_address;
 mod error;
 pub mod msg;
 

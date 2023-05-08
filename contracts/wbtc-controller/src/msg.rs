@@ -93,6 +93,9 @@ pub enum QueryMsg {
 
     #[returns(IsOwnerResponse)]
     IsOwner { address: String },
+
+    #[returns(GetCustodianDepositAddressResponse)]
+    GetCustodianDepositAddress { merchant: String },
 }
 
 #[cw_serde]
@@ -157,4 +160,9 @@ pub struct GetOwnerResponse {
 #[cw_serde]
 pub struct IsOwnerResponse {
     pub is_owner: bool,
+}
+
+#[cw_serde]
+pub struct GetCustodianDepositAddressResponse {
+    pub address: String,
 }
