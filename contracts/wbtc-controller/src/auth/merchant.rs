@@ -29,9 +29,9 @@ pub fn remove_merchant(
     Ok(Response::new().add_event(event))
 }
 
-pub fn is_merchant(deps: Deps, address: &str) -> Result<bool, StdError> {
+pub fn is_merchant(deps: Deps, address: &Addr) -> Result<bool, StdError> {
     Ok(MERCHANTS
-        .may_load(deps.storage, deps.api.addr_validate(address)?)?
+        .may_load(deps.storage, address.to_owned())?
         .is_some())
 }
 
@@ -49,13 +49,12 @@ mod tests {
         let merchant_address_1 = "osmo1merchant1";
         let merchant_address_2 = "osmo1merchant2";
 
-        // check is_merchant before add will return false
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_1).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
             false
         );
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_2).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
             false
         );
 
@@ -68,11 +67,11 @@ mod tests {
         );
 
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_1).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
             true
         );
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_2).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
             false
         );
 
@@ -85,11 +84,11 @@ mod tests {
         );
 
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_1).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
             true
         );
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_2).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
             true
         );
 
@@ -102,11 +101,11 @@ mod tests {
         );
 
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_1).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
             false
         );
         assert_eq!(
-            is_merchant(deps.as_ref(), &merchant_address_2).unwrap(),
+            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
             true
         );
     }

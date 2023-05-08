@@ -16,7 +16,7 @@ pub fn allow_only(roles: &[Role], address: &Addr, deps: Deps) -> Result<(), Cont
     for role in roles {
         let is_authorized = match role {
             Role::Owner => owner::is_owner(deps, address)?,
-            Role::Merchant => merchant::is_merchant(deps, address.as_str())?,
+            Role::Merchant => merchant::is_merchant(deps, address)?,
             Role::Custodian => custodian::is_custodian(deps, address.as_str())?,
         };
         ensure!(is_authorized, ContractError::Unauthorized {});

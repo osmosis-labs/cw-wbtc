@@ -99,7 +99,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetBurnRequestsLength {} => todo!(),
         QueryMsg::GetTokenDenom {} => todo!(),
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
-            is_merchant: merchant::is_merchant(deps, &address)?,
+            is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
         }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &address)?,
