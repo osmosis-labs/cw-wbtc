@@ -63,7 +63,7 @@ pub fn execute(
         ExecuteMsg::TransferOwnership { new_owner_address } => {
             owner::transfer_ownership(deps, &info, &new_owner_address)
         }
-        ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &address),
+        ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
         ExecuteMsg::SetCustodianDepositAddress {
             merchant: _,
             deposit_address: _,

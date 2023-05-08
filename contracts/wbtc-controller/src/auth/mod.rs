@@ -51,7 +51,12 @@ mod tests {
         .unwrap();
 
         // initialize custodian
-        custodian::set_custodian(deps.as_mut(), custodian_address).unwrap();
+        custodian::set_custodian(
+            deps.as_mut(),
+            &mock_info(owner_address, &[]),
+            custodian_address,
+        )
+        .unwrap();
 
         // no error when address has the role
         allow_only(
