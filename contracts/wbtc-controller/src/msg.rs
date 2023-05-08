@@ -10,6 +10,9 @@ pub struct InstantiateMsg {
 /// Message type for `execute` entry_point
 #[cw_serde]
 pub enum ExecuteMsg {
+    TransferOwnership {
+        new_owner_address: String,
+    },
     SetCustodian {
         address: String,
     },
@@ -84,6 +87,12 @@ pub enum QueryMsg {
 
     #[returns(GetCustodianResponse)]
     GetCustodian {},
+
+    #[returns(GetOwnerResponse)]
+    GetOwner {},
+
+    #[returns(IsOwnerResponse)]
+    IsOwner { address: String },
 }
 
 #[cw_serde]
@@ -138,4 +147,14 @@ pub struct IsCustodianResponse {
 #[cw_serde]
 pub struct GetCustodianResponse {
     pub address: String,
+}
+
+#[cw_serde]
+pub struct GetOwnerResponse {
+    pub address: String,
+}
+
+#[cw_serde]
+pub struct IsOwnerResponse {
+    pub is_owner: bool,
 }

@@ -60,6 +60,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::TransferOwnership { new_owner_address } => {
+            owner::transfer_ownership(deps, &info, &new_owner_address)
+        }
         ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &address),
         ExecuteMsg::SetCustodianDepositAddress {
             merchant: _,
@@ -104,6 +107,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
             address: custodian::get_custodian(deps)?.to_string(),
         }),
+        QueryMsg::GetOwner {} => to_binary(&owner::get_owner(deps)?.to_string()),
+        QueryMsg::IsOwner { address } => to_binary(&owner::is_owner(deps, &address)?),
     }
 }
 
