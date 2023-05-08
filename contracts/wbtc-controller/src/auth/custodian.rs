@@ -12,10 +12,10 @@ pub fn set_custodian(deps: DepsMut, address: &str) -> Result<Response, ContractE
     Ok(Response::new().add_event(event))
 }
 
-pub fn is_custodian(deps: Deps, address: &str) -> Result<bool, StdError> {
+pub fn is_custodian(deps: Deps, address: &Addr) -> Result<bool, StdError> {
     let custodian = CUSTODIAN.load(deps.storage)?;
 
-    Ok(custodian == deps.api.addr_validate(address)?)
+    Ok(custodian == address)
 }
 
 pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
@@ -35,7 +35,7 @@ mod tests {
         let non_custodian_address = "osmo1noncustodian";
 
         // check before set will fail
-        let err = is_custodian(deps.as_ref(), &custodian_address).unwrap_err();
+        let err = is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap_err();
         assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
 
         let err = get_custodian(deps.as_ref()).unwrap_err();
@@ -52,11 +52,11 @@ mod tests {
         // check after set will pass
         assert_eq!(get_custodian(deps.as_ref()).unwrap(), custodian_address);
         assert_eq!(
-            is_custodian(deps.as_ref(), &custodian_address).unwrap(),
+            is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap(),
             true
         );
         assert_eq!(
-            is_custodian(deps.as_ref(), &non_custodian_address).unwrap(),
+            is_custodian(deps.as_ref(), &Addr::unchecked(non_custodian_address)).unwrap(),
             false
         );
     }

@@ -102,7 +102,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
         }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
-            is_custodian: custodian::is_custodian(deps, &address)?,
+            is_custodian: custodian::is_custodian(deps, &deps.api.addr_validate(&address)?)?,
         }),
         QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
             address: custodian::get_custodian(deps)?.to_string(),
