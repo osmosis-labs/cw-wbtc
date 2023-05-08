@@ -3,7 +3,9 @@ use cosmwasm_std::{Timestamp, Uint128, Uint64};
 
 /// Message type for `instantiate` entry_point
 #[cw_serde]
-pub struct InstantiateMsg {}
+pub struct InstantiateMsg {
+    pub owner: String,
+}
 
 /// Message type for `execute` entry_point
 #[cw_serde]
