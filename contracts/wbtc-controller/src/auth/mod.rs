@@ -87,7 +87,7 @@ mod tests {
             deps.as_ref(),
         )
         .unwrap_err();
-        assert_eq!(err.to_string(), "Unauthorized");
+        assert_eq!(err, ContractError::Unauthorized {});
 
         let err = allow_only(
             &[Role::Merchant],
@@ -95,8 +95,7 @@ mod tests {
             deps.as_ref(),
         )
         .unwrap_err();
-
-        assert_eq!(err.to_string(), "Unauthorized");
+        assert_eq!(err, ContractError::Unauthorized {});
 
         let err = allow_only(
             &[Role::Custodian],
@@ -105,7 +104,7 @@ mod tests {
         )
         .unwrap_err();
 
-        assert_eq!(err.to_string(), "Unauthorized");
+        assert_eq!(err, ContractError::Unauthorized {});
 
         // error unauthorized when address does not have any of the roles
         let err = allow_only(

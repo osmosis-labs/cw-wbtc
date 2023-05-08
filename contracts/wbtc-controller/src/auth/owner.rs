@@ -56,10 +56,10 @@ mod tests {
 
         // check before set will fail
         let err = is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap_err();
-        assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
+        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
 
         let err = get_owner(deps.as_ref()).unwrap_err();
-        assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
+        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
 
         // initialize owner
         assert_eq!(
@@ -87,7 +87,7 @@ mod tests {
             &non_owner_address,
         )
         .unwrap_err();
-        assert_eq!(err.to_string(), "Unauthorized");
+        assert_eq!(err, ContractError::Unauthorized {});
 
         assert_eq!(get_owner(deps.as_ref()).unwrap(), owner_address);
         assert_eq!(

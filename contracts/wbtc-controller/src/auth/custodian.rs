@@ -51,10 +51,10 @@ mod tests {
 
         // check before set will fail
         let err = is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap_err();
-        assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
+        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
 
         let err = get_custodian(deps.as_ref()).unwrap_err();
-        assert_eq!(err.to_string(), "cosmwasm_std::addresses::Addr not found");
+        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
 
         // set custodian by non owner should fail
         let err = set_custodian(
