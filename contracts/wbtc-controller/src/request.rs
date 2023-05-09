@@ -4,7 +4,7 @@ use cosmwasm_std::{
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum RequestStatus {
     Pending,
     Completed,
@@ -12,7 +12,7 @@ pub enum RequestStatus {
     Rejected,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Request {
     pub requester: Addr,
     pub amount: Uint128,

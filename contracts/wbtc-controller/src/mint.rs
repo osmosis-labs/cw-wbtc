@@ -77,12 +77,13 @@ fn next_nonce(deps: &mut DepsMut) -> StdResult<Uint128> {
 mod tests {
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_info},
-        Addr, BlockInfo, Env, Event, Response, Timestamp, TransactionInfo, Uint128,
+        Addr, BlockInfo, DepsMut, Env, Event, Response, Timestamp, TransactionInfo, Uint128,
     };
 
     use crate::{
         auth::{custodian, merchant, owner},
-        mint::add_mint_request,
+        mint::{add_mint_request, MINT_NONCE, MINT_REQUESTS},
+        request::RequestStatus,
         ContractError,
     };
 
@@ -90,17 +91,17 @@ mod tests {
     fn test_add_mint_request() {
         let owner = "osmo1owner";
         let custodian = "osmo1custodian";
-        let merchant_1 = "osmo1merchant1";
+        let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
         owner::initialize_owner(deps.as_mut(), owner).unwrap();
         custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
 
-        let mut add_mint_request_fixture = |sender: &str| {
+        let add_mint_request_fixture = |deps: DepsMut, sender: &str| {
             add_mint_request(
-                deps.as_mut(),
+                deps,
                 mock_info(sender, &[]),
                 Env {
                     block: BlockInfo {
@@ -123,20 +124,22 @@ mod tests {
 
         // add mint request fail with unauthorized if not merchant
         assert_eq!(
-            add_mint_request_fixture(owner).unwrap_err(),
+            add_mint_request_fixture(deps.as_mut(), owner).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
         assert_eq!(
-            add_mint_request_fixture(custodian).unwrap_err(),
+            add_mint_request_fixture(deps.as_mut(), custodian).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
+        let hash_on_nonce_0 = "ccD5o4NXxNaqYukHobbmZSf8tYOv1HyzPKG4dT1pGbA=";
+
         assert_eq!(
-            add_mint_request_fixture(merchant_1).unwrap(),
+            add_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
             Response::new().add_event(
                 Event::new("mint_request_added")
-                    .add_attribute("sender", merchant_1)
+                    .add_attribute("sender", merchant)
                     .add_attribute("amount", "100000000")
                     .add_attribute(
                         "tx_id",
@@ -150,11 +153,42 @@ mod tests {
                     .add_attribute("block_height", "1")
                     .add_attribute("timestamp", "1689069540000000000")
                     .add_attribute("transaction_index", "1")
-                    .add_attribute(
-                        "request_hash",
-                        "S+29PBJLMGmBKBG18A+lUROSno6Mqkwq0BjXK1yhMlU="
-                    )
+                    .add_attribute("request_hash", hash_on_nonce_0)
             )
+        );
+
+        // mint request should be saved
+        let request = MINT_REQUESTS
+            .load(deps.as_ref().storage, hash_on_nonce_0.to_owned())
+            .unwrap();
+
+        assert_eq!(request.nonce, Uint128::new(0));
+        assert_eq!(request.status, RequestStatus::Pending);
+        assert_eq!(request.hash().unwrap().to_base64(), hash_on_nonce_0);
+
+        // nonce should be incremented
+        assert_eq!(
+            MINT_NONCE.load(deps.as_ref().storage).unwrap(),
+            Uint128::new(1)
+        );
+
+        // same request with same sender, even on the same tx must result in different hash
+        let hash_on_nonce_1 = add_mint_request_fixture(deps.as_mut(), merchant)
+            .unwrap()
+            .events[0]
+            .attributes
+            .iter()
+            .find(|attr| attr.key == "request_hash")
+            .unwrap()
+            .value
+            .clone();
+
+        assert_ne!(hash_on_nonce_0, hash_on_nonce_1);
+
+        // nonce should be incremented
+        assert_eq!(
+            MINT_NONCE.load(deps.as_ref().storage).unwrap(),
+            Uint128::new(2)
         );
     }
 }
