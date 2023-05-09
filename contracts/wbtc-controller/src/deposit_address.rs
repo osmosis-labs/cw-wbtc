@@ -21,16 +21,16 @@ pub fn set_custodian_deposit_address(
 
     let merchant = deps.api.addr_validate(merchant)?;
 
+    let event = Event::new("custodian_deposit_address_set")
+        .add_attribute("sender", info.sender.as_str())
+        .add_attribute("merchant", merchant.as_str())
+        .add_attribute("deposit_address", deposit_address);
+
     CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.save(
         deps.storage,
-        merchant.clone(),
+        merchant,
         &deposit_address.to_string(),
     )?;
-
-    let event = Event::new("custodian_deposit_address_set")
-        .add_attribute("sender", info.sender.to_string())
-        .add_attribute("merchant", merchant)
-        .add_attribute("deposit_address", deposit_address);
 
     Ok(Response::new().add_event(event))
 }

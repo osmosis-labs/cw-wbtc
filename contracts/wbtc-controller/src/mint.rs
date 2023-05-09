@@ -37,29 +37,10 @@ pub fn add_mint_request(
     amount: Uint128,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
-    // get nonce
     let nonce = NONCE.may_load(deps.storage)?.unwrap_or_default();
 
-    let request = Request {
-        requester: info.sender.clone(),
-        amount,
-        deposit_address: deposit_address.to_string(),
-        block: env.block.clone(),
-        transaction: env.transaction.clone(),
-        contract: env.contract,
-        nonce,
-        status: RequestStatus::Pending,
-    };
-
-    let request_hash = hash_request(&request)?;
-    MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
-
-    // update nonce
-    let next = nonce + Uint128::new(1);
-    NONCE.save(deps.storage, &next)?;
-
     let event = Event::new("mint_request_added")
-        .add_attribute("sender", info.sender.to_string())
+        .add_attribute("sender", info.sender.as_str())
         .add_attribute("amount", amount)
         .add_attribute("deposit_address", deposit_address)
         .add_attribute("nonce", nonce)
@@ -68,10 +49,30 @@ pub fn add_mint_request(
         .add_attribute(
             "transaction_index",
             env.transaction
+                .as_ref()
                 .map(|t| t.index.to_string())
                 .unwrap_or_default(),
-        )
-        .add_attribute("request_hash", request_hash);
+        );
+
+    let request = Request {
+        requester: info.sender.clone(),
+        amount,
+        deposit_address: deposit_address.to_string(),
+        block: env.block,
+        transaction: env.transaction,
+        contract: env.contract,
+        nonce,
+        status: RequestStatus::Pending,
+    };
+
+    let request_hash = hash_request(&request)?;
+    MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
+
+    let event = event.add_attribute("request_hash", request_hash);
+
+    // update nonce
+    let next = nonce + Uint128::new(1);
+    NONCE.save(deps.storage, &next)?;
 
     Ok(Response::new().add_event(event))
 }
