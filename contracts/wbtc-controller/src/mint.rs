@@ -1,13 +1,14 @@
 use crate::{
     auth::{allow_only, Role},
+    nonce::Nonce,
     request::{Request, RequestStatus},
     ContractError,
 };
 use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response, StdResult, Uint128};
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::Map;
 
 const MINT_REQUESTS: Map<String, Request> = Map::new("mint_requests");
-const MINT_NONCE: Item<Uint128> = Item::new("mint_nonce");
+const MINT_NONCE: Nonce = Nonce::new("mint_nonce");
 
 pub fn add_mint_request(
     mut deps: DepsMut,
@@ -19,7 +20,7 @@ pub fn add_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
-    let nonce = next_nonce(&mut deps)?;
+    let nonce = MINT_NONCE.next(&mut deps)?;
     let event = Event::new("mint_request_added")
         .add_attribute("sender", info.sender.as_str())
         .add_attribute("amount", amount)
@@ -61,20 +62,10 @@ fn update_mint_request(deps: &mut DepsMut, request: &Request) -> StdResult<Strin
     Ok(request_hash)
 }
 
-fn next_nonce(deps: &mut DepsMut) -> StdResult<Uint128> {
-    // load nonce from state
-    let nonce = MINT_NONCE.may_load(deps.storage)?.unwrap_or_default();
-
-    // update nonce to be used for next request
-    MINT_NONCE.save(deps.storage, &(nonce + Uint128::new(1)))?;
-
-    // return the loaded nonce
-    Ok(nonce)
-}
-
 // TODO: test with add and confirm, add and reject, add and cancel
 #[cfg(test)]
 mod tests {
+
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_info},
         Addr, BlockInfo, DepsMut, Env, Event, Response, Timestamp, TransactionInfo, Uint128,
@@ -168,7 +159,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_NONCE.load(deps.as_ref().storage).unwrap(),
+            MINT_NONCE.nonce.load(deps.as_ref().storage).unwrap(),
             Uint128::new(1)
         );
 
@@ -187,7 +178,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_NONCE.load(deps.as_ref().storage).unwrap(),
+            MINT_NONCE.nonce.load(deps.as_ref().storage).unwrap(),
             Uint128::new(2)
         );
     }
