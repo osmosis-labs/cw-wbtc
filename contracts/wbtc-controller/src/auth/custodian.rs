@@ -16,7 +16,7 @@ pub fn set_custodian(
 
     CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let event = Event::new("set_custodian").add_attribute("address", address);
+    let event = Event::new("custodian_set").add_attribute("address", address);
     Ok(Response::new().add_event(event))
 }
 
@@ -70,7 +70,7 @@ mod tests {
             set_custodian(deps.as_mut(), &mock_info(owner, &[]), &custodian_address)
                 .unwrap()
                 .events,
-            vec![Event::new("set_custodian").add_attribute("address", custodian_address.clone())]
+            vec![Event::new("custodian_set").add_attribute("address", custodian_address.clone())]
         );
 
         // check after set will pass

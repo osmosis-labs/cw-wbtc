@@ -18,7 +18,7 @@ pub fn add_merchant(
 
     MERCHANTS.save(deps.storage, deps.api.addr_validate(address)?, &())?;
 
-    let event = Event::new("add_merchant").add_attribute("address", address);
+    let event = Event::new("merchant_added").add_attribute("address", address);
     Ok(Response::new().add_event(event))
 }
 
@@ -31,7 +31,7 @@ pub fn remove_merchant(
 
     MERCHANTS.remove(deps.storage, deps.api.addr_validate(address)?);
 
-    let event = Event::new("remove_merchant").add_attribute("address", address);
+    let event = Event::new("merchant_removed").add_attribute("address", address);
     Ok(Response::new().add_event(event))
 }
 
@@ -88,7 +88,7 @@ mod tests {
             add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
                 .events,
-            vec![Event::new("add_merchant").add_attribute("address", merchant_address_1)]
+            vec![Event::new("merchant_added").add_attribute("address", merchant_address_1)]
         );
 
         assert_eq!(
@@ -105,7 +105,7 @@ mod tests {
             add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_2)
                 .unwrap()
                 .events,
-            vec![Event::new("add_merchant").add_attribute("address", merchant_address_2)]
+            vec![Event::new("merchant_added").add_attribute("address", merchant_address_2)]
         );
 
         assert_eq!(
@@ -131,7 +131,7 @@ mod tests {
             remove_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
                 .events,
-            vec![Event::new("remove_merchant").add_attribute("address", merchant_address_1)]
+            vec![Event::new("merchant_removed").add_attribute("address", merchant_address_1)]
         );
 
         assert_eq!(

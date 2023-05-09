@@ -27,7 +27,7 @@ pub fn set_custodian_deposit_address(
         &deposit_address.to_string(),
     )?;
 
-    let event = Event::new("set_custodian_deposit_address")
+    let event = Event::new("custodian_deposit_address_set")
         .add_attribute("sender", info.sender.to_string())
         .add_attribute("merchant", merchant)
         .add_attribute("deposit_address", deposit_address);

@@ -58,7 +58,7 @@ pub fn add_mint_request(
     let next = nonce + Uint128::new(1);
     NONCE.save(deps.storage, &next)?;
 
-    let event = Event::new("add_mint_request")
+    let event = Event::new("mint_request_added")
         .add_attribute("sender", info.sender.to_string())
         .add_attribute("amount", amount)
         .add_attribute("deposit_address", deposit_address)
@@ -81,3 +81,5 @@ fn hash_request(request: &Request) -> Result<String, StdError> {
     hasher.update(to_binary(&request)?.to_vec());
     Ok(Binary::from(hasher.finalize().to_vec()).to_base64())
 }
+
+// TODO: test with add and confirm, add and reject, add and cancel

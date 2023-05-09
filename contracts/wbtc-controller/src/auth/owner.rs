@@ -11,7 +11,7 @@ const OWNER: Item<Addr> = Item::new("owner");
 pub fn initialize_owner(deps: DepsMut, address: &str) -> Result<Response, ContractError> {
     OWNER.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let event = Event::new("initialize_owner").add_attribute("address", address);
+    let event = Event::new("owner_initialized").add_attribute("address", address);
     Ok(Response::new().add_event(event))
 }
 
@@ -25,7 +25,7 @@ pub fn transfer_ownership(
 
     OWNER.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let event = Event::new("transfer_owner_right").add_attribute("address", address);
+    let event = Event::new("owner_right_transfered").add_attribute("address", address);
     Ok(Response::new().add_event(event))
 }
 
@@ -66,7 +66,7 @@ mod tests {
             initialize_owner(deps.as_mut(), &owner_address)
                 .unwrap()
                 .events,
-            vec![Event::new("initialize_owner").add_attribute("address", owner_address.clone())]
+            vec![Event::new("owner_initialized").add_attribute("address", owner_address.clone())]
         );
 
         // check after set will pass
@@ -108,7 +108,7 @@ mod tests {
             )
             .unwrap()
             .events,
-            vec![Event::new("transfer_owner_right")
+            vec![Event::new("owner_right_transfered")
                 .add_attribute("address", new_owner_address.clone())]
         );
 
