@@ -8,6 +8,7 @@ use cw2::set_contract_version;
 use crate::auth::{custodian, merchant, owner};
 use crate::deposit_address::{self, set_custodian_deposit_address};
 use crate::error::ContractError;
+use crate::mint;
 use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
@@ -56,7 +57,7 @@ pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, C
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -73,10 +74,10 @@ pub fn execute(
         ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
         ExecuteMsg::AddMintRequest {
-            amount: _,
-            tx_id: _,
-            deposit_address: _,
-        } => todo!(),
+            amount,
+            tx_id,
+            deposit_address,
+        } => mint::add_mint_request(deps, info, env, amount, tx_id, deposit_address),
         ExecuteMsg::CancelMintRequest { request_hash: _ } => todo!(),
         ExecuteMsg::ConfirmMintRequest { request_hash: _ } => todo!(),
         ExecuteMsg::RejectMintRequest { request_hash: _ } => todo!(),
