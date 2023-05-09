@@ -49,7 +49,7 @@ mod tests {
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
             block: BlockInfo {
                 height: 1,
-                time: Timestamp::from_nanos(1683617645768),
+                time: Timestamp::from_seconds(1689069540),
                 chain_id: "osmosis-1".to_string(),
             },
             transaction: Some(TransactionInfo { index: 1 }),
@@ -71,7 +71,7 @@ mod tests {
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
             "block": {
                 "height": 1,
-                "time": "1683617645768",
+                "time": "1689069540000000000",
                 "chain_id": "osmosis-1"
             },
             "transaction": {
