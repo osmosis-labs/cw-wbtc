@@ -27,7 +27,7 @@ pub fn add_mint_request(
         .add_attribute("deposit_address", deposit_address.as_str())
         .add_attribute("nonce", nonce)
         .add_attribute("block_height", env.block.height.to_string())
-        .add_attribute("timestamp", env.block.time.to_string())
+        .add_attribute("timestamp", env.block.time.nanos().to_string())
         .add_attribute(
             "transaction_index",
             env.transaction
@@ -148,7 +148,7 @@ mod tests {
                     )
                     .add_attribute("nonce", "0")
                     .add_attribute("block_height", "1")
-                    .add_attribute("timestamp", "1689069540.000000000")
+                    .add_attribute("timestamp", "1689069540000000000")
                     .add_attribute("transaction_index", "1")
                     .add_attribute(
                         "request_hash",
