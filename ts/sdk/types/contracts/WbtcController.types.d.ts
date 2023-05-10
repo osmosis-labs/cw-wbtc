@@ -4,142 +4,150 @@
 * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
 */
 export type ExecuteMsg = {
-  transfer_ownership: {
-    new_owner_address: string;
-  };
+    transfer_ownership: {
+        new_owner_address: string;
+    };
 } | {
-  set_custodian: {
-    address: string;
-  };
+    set_custodian: {
+        address: string;
+    };
 } | {
-  add_merchant: {
-    address: string;
-  };
+    add_merchant: {
+        address: string;
+    };
 } | {
-  remove_merchant: {
-    address: string;
-  };
+    remove_merchant: {
+        address: string;
+    };
 } | {
-  set_custodian_deposit_address: {
-    deposit_address: string;
-    merchant: string;
-  };
+    set_custodian_deposit_address: {
+        deposit_address: string;
+        merchant: string;
+    };
 } | {
-  set_merchant_deposit_address: {
-    deposit_address: string;
-  };
+    set_merchant_deposit_address: {
+        deposit_address: string;
+    };
 } | {
-  add_mint_request: {
-    amount: Uint128;
-    deposit_address: string;
-    tx_id: string;
-  };
+    issue_mint_request: {
+        amount: Uint128;
+        deposit_address: string;
+        tx_id: string;
+    };
 } | {
-  cancel_mint_request: {
-    request_hash: string;
-  };
+    cancel_mint_request: {
+        request_hash: string;
+    };
 } | {
-  confirm_mint_request: {
-    request_hash: string;
-  };
+    approve_mint_request: {
+        request_hash: string;
+    };
 } | {
-  reject_mint_request: {
-    request_hash: string;
-  };
+    reject_mint_request: {
+        request_hash: string;
+    };
 } | {
-  burn: {
-    amount: Uint128;
-  };
+    burn: {
+        amount: Uint128;
+    };
 } | {
-  confirm_burn_request: {
-    request_hash: string;
-    tx_id: string;
-  };
+    confirm_burn_request: {
+        request_hash: string;
+        tx_id: string;
+    };
 } | {
-  pause: {};
+    pause: {};
 } | {
-  unpause: {};
+    unpause: {};
 };
 export type Uint128 = string;
 export interface InstantiateMsg {
-  owner: string;
+    denom: string;
+    owner: string;
 }
 export type MigrateMsg = string;
 export type QueryMsg = {
-  get_mint_request: {
-    nonce: Uint64;
-  };
+    get_mint_request: {
+        nonce: Uint64;
+    };
 } | {
-  get_mint_requests_length: {};
+    get_mint_requests_length: {};
 } | {
-  get_burn_request: {
-    nonce: Uint64;
-  };
+    get_burn_request: {
+        nonce: Uint64;
+    };
 } | {
-  get_burn_requests_length: {};
+    get_burn_requests_length: {};
 } | {
-  get_token_denom: {};
+    get_token_denom: {};
 } | {
-  is_merchant: {
-    address: string;
-  };
+    is_merchant: {
+        address: string;
+    };
 } | {
-  is_custodian: {
-    address: string;
-  };
+    is_custodian: {
+        address: string;
+    };
 } | {
-  get_custodian: {};
+    get_custodian: {};
 } | {
-  get_owner: {};
+    get_owner: {};
 } | {
-  is_owner: {
-    address: string;
-  };
+    is_owner: {
+        address: string;
+    };
+} | {
+    get_custodian_deposit_address: {
+        merchant: string;
+    };
 };
 export type Uint64 = string;
 export type Timestamp = Uint64;
 export interface GetBurnRequestResponse {
-  amount: Uint128;
-  deposit_address: string;
-  request_hash: string;
-  request_nonce: Uint64;
-  requester: string;
-  status: string;
-  timestamp: Timestamp;
-  tx_id: string;
+    amount: Uint128;
+    deposit_address: string;
+    request_hash: string;
+    request_nonce: Uint64;
+    requester: string;
+    status: string;
+    timestamp: Timestamp;
+    tx_id: string;
 }
 export interface GetBurnRequestsLengthResponse {
-  length: Uint64;
+    length: Uint64;
+}
+export interface GetCustodianDepositAddressResponse {
+    address: string;
 }
 export interface GetCustodianResponse {
-  address: string;
+    address: string;
 }
 export interface GetMintRequestResponse {
-  amount: Uint64;
-  deposit_address: string;
-  request_hash: string;
-  request_nonce: Uint64;
-  requester: string;
-  status: string;
-  timestamp: Timestamp;
-  tx_id: string;
+    amount: Uint64;
+    deposit_address: string;
+    request_hash: string;
+    request_nonce: Uint64;
+    requester: string;
+    status: string;
+    timestamp: Timestamp;
+    tx_id: string;
 }
 export interface GetMintRequestsLengthResponse {
-  length: Uint64;
+    length: Uint64;
 }
 export interface GetOwnerResponse {
-  address: string;
+    address: string;
 }
 export interface GetTokenDenomResponse {
-  denom: string;
+    denom: string;
 }
 export interface IsCustodianResponse {
-  is_custodian: boolean;
+    is_custodian: boolean;
 }
 export interface IsMerchantResponse {
-  is_merchant: boolean;
+    is_merchant: boolean;
 }
 export interface IsOwnerResponse {
-  is_owner: boolean;
+    is_owner: boolean;
 }
 //# sourceMappingURL=WbtcController.types.d.ts.map

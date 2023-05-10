@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { Coin, StdFee } from "@cosmjs/amino";
-import { ExecuteMsg, Uint128, InstantiateMsg, MigrateMsg, QueryMsg, Uint64, Timestamp, GetBurnRequestResponse, GetBurnRequestsLengthResponse, GetCustodianResponse, GetMintRequestResponse, GetMintRequestsLengthResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse } from "./WbtcController.types";
+import { ExecuteMsg, Uint128, InstantiateMsg, MigrateMsg, QueryMsg, Uint64, Timestamp, GetBurnRequestResponse, GetBurnRequestsLengthResponse, GetCustodianDepositAddressResponse, GetCustodianResponse, GetMintRequestResponse, GetMintRequestsLengthResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse } from "./WbtcController.types";
 export interface WbtcControllerReadOnlyInterface {
   contractAddress: string;
   getMintRequest: ({
@@ -39,6 +39,11 @@ export interface WbtcControllerReadOnlyInterface {
   }: {
     address: string;
   }) => Promise<IsOwnerResponse>;
+  getCustodianDepositAddress: ({
+    merchant
+  }: {
+    merchant: string;
+  }) => Promise<GetCustodianDepositAddressResponse>;
 }
 export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterface {
   client: CosmWasmClient;
@@ -57,6 +62,7 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
     this.getCustodian = this.getCustodian.bind(this);
     this.getOwner = this.getOwner.bind(this);
     this.isOwner = this.isOwner.bind(this);
+    this.getCustodianDepositAddress = this.getCustodianDepositAddress.bind(this);
   }
 
   getMintRequest = async ({
@@ -139,6 +145,17 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
       }
     });
   };
+  getCustodianDepositAddress = async ({
+    merchant
+  }: {
+    merchant: string;
+  }): Promise<GetCustodianDepositAddressResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_custodian_deposit_address: {
+        merchant
+      }
+    });
+  };
 }
 export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface {
   contractAddress: string;
@@ -175,7 +192,7 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
   }: {
     depositAddress: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  addMintRequest: ({
+  issueMintRequest: ({
     amount,
     depositAddress,
     txId
@@ -189,7 +206,7 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
   }: {
     requestHash: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-  confirmMintRequest: ({
+  approveMintRequest: ({
     requestHash
   }: {
     requestHash: string;
@@ -230,9 +247,9 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
     this.removeMerchant = this.removeMerchant.bind(this);
     this.setCustodianDepositAddress = this.setCustodianDepositAddress.bind(this);
     this.setMerchantDepositAddress = this.setMerchantDepositAddress.bind(this);
-    this.addMintRequest = this.addMintRequest.bind(this);
+    this.issueMintRequest = this.issueMintRequest.bind(this);
     this.cancelMintRequest = this.cancelMintRequest.bind(this);
-    this.confirmMintRequest = this.confirmMintRequest.bind(this);
+    this.approveMintRequest = this.approveMintRequest.bind(this);
     this.rejectMintRequest = this.rejectMintRequest.bind(this);
     this.burn = this.burn.bind(this);
     this.confirmBurnRequest = this.confirmBurnRequest.bind(this);
@@ -309,7 +326,7 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
       }
     }, fee, memo, funds);
   };
-  addMintRequest = async ({
+  issueMintRequest = async ({
     amount,
     depositAddress,
     txId
@@ -319,7 +336,7 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
     txId: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      add_mint_request: {
+      issue_mint_request: {
         amount,
         deposit_address: depositAddress,
         tx_id: txId
@@ -337,13 +354,13 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
       }
     }, fee, memo, funds);
   };
-  confirmMintRequest = async ({
+  approveMintRequest = async ({
     requestHash
   }: {
     requestHash: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      confirm_mint_request: {
+      approve_mint_request: {
         request_hash: requestHash
       }
     }, fee, memo, funds);

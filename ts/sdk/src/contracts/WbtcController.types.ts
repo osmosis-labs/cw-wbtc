@@ -30,7 +30,7 @@ export type ExecuteMsg = {
     deposit_address: string;
   };
 } | {
-  add_mint_request: {
+  issue_mint_request: {
     amount: Uint128;
     deposit_address: string;
     tx_id: string;
@@ -40,7 +40,7 @@ export type ExecuteMsg = {
     request_hash: string;
   };
 } | {
-  confirm_mint_request: {
+  approve_mint_request: {
     request_hash: string;
   };
 } | {
@@ -63,6 +63,7 @@ export type ExecuteMsg = {
 };
 export type Uint128 = string;
 export interface InstantiateMsg {
+  denom: string;
   owner: string;
 }
 export type MigrateMsg = string;
@@ -96,6 +97,10 @@ export type QueryMsg = {
   is_owner: {
     address: string;
   };
+} | {
+  get_custodian_deposit_address: {
+    merchant: string;
+  };
 };
 export type Uint64 = string;
 export type Timestamp = Uint64;
@@ -111,6 +116,9 @@ export interface GetBurnRequestResponse {
 }
 export interface GetBurnRequestsLengthResponse {
   length: Uint64;
+}
+export interface GetCustodianDepositAddressResponse {
+  address: string;
 }
 export interface GetCustodianResponse {
   address: string;

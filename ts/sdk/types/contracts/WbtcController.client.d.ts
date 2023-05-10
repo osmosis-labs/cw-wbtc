@@ -5,7 +5,7 @@
 */
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { Coin, StdFee } from "@cosmjs/amino";
-import { Uint128, Uint64, GetBurnRequestResponse, GetBurnRequestsLengthResponse, GetCustodianResponse, GetMintRequestResponse, GetMintRequestsLengthResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse } from "./WbtcController.types";
+import { Uint128, Uint64, GetBurnRequestResponse, GetBurnRequestsLengthResponse, GetCustodianDepositAddressResponse, GetCustodianResponse, GetMintRequestResponse, GetMintRequestsLengthResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse } from "./WbtcController.types";
 export interface WbtcControllerReadOnlyInterface {
     contractAddress: string;
     getMintRequest: ({ nonce }: {
@@ -28,6 +28,9 @@ export interface WbtcControllerReadOnlyInterface {
     isOwner: ({ address }: {
         address: string;
     }) => Promise<IsOwnerResponse>;
+    getCustodianDepositAddress: ({ merchant }: {
+        merchant: string;
+    }) => Promise<GetCustodianDepositAddressResponse>;
 }
 export declare class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterface {
     client: CosmWasmClient;
@@ -53,6 +56,9 @@ export declare class WbtcControllerQueryClient implements WbtcControllerReadOnly
     isOwner: ({ address }: {
         address: string;
     }) => Promise<IsOwnerResponse>;
+    getCustodianDepositAddress: ({ merchant }: {
+        merchant: string;
+    }) => Promise<GetCustodianDepositAddressResponse>;
 }
 export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface {
     contractAddress: string;
@@ -76,7 +82,7 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
     setMerchantDepositAddress: ({ depositAddress }: {
         depositAddress: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    addMintRequest: ({ amount, depositAddress, txId }: {
+    issueMintRequest: ({ amount, depositAddress, txId }: {
         amount: Uint128;
         depositAddress: string;
         txId: string;
@@ -84,7 +90,7 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
     cancelMintRequest: ({ requestHash }: {
         requestHash: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    confirmMintRequest: ({ requestHash }: {
+    approveMintRequest: ({ requestHash }: {
         requestHash: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     rejectMintRequest: ({ requestHash }: {
@@ -124,7 +130,7 @@ export declare class WbtcControllerClient extends WbtcControllerQueryClient impl
     setMerchantDepositAddress: ({ depositAddress }: {
         depositAddress: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    addMintRequest: ({ amount, depositAddress, txId }: {
+    issueMintRequest: ({ amount, depositAddress, txId }: {
         amount: Uint128;
         depositAddress: string;
         txId: string;
@@ -132,7 +138,7 @@ export declare class WbtcControllerClient extends WbtcControllerQueryClient impl
     cancelMintRequest: ({ requestHash }: {
         requestHash: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    confirmMintRequest: ({ requestHash }: {
+    approveMintRequest: ({ requestHash }: {
         requestHash: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     rejectMintRequest: ({ requestHash }: {
