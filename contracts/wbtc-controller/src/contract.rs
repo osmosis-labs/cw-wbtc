@@ -11,9 +11,7 @@ use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
 };
-use crate::tokenfactory;
 use crate::tokenfactory::deposit_address::{self, set_custodian_deposit_address};
-use crate::tokenfactory::mint::cancel_mint_request;
 use crate::tokenfactory::{mint, token::TOKEN_DENOM};
 
 // version info for migration info
@@ -84,12 +82,14 @@ pub fn execute(
             deposit_address,
         } => mint::issue_mint_request(deps, info, env, amount, tx_id, deposit_address),
         ExecuteMsg::CancelMintRequest { request_hash } => {
-            cancel_mint_request(deps, info, env.contract.address, request_hash)
+            mint::cancel_mint_request(deps, info, env.contract.address, request_hash)
         }
         ExecuteMsg::ApproveMintRequest { request_hash } => {
-            tokenfactory::mint::approve_mint_request(deps, info, env.contract.address, request_hash)
+            mint::approve_mint_request(deps, info, env.contract.address, request_hash)
         }
-        ExecuteMsg::RejectMintRequest { request_hash: _ } => todo!(),
+        ExecuteMsg::RejectMintRequest { request_hash } => {
+            mint::reject_mint_request(deps, info, env.contract.address, request_hash)
+        }
         ExecuteMsg::Burn { amount: _ } => todo!(),
         ExecuteMsg::ConfirmBurnRequest {
             request_hash: _,
