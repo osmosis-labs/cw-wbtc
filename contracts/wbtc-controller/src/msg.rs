@@ -39,7 +39,7 @@ pub enum ExecuteMsg {
     CancelMintRequest {
         request_hash: String,
     },
-    ConfirmMintRequest {
+    ApproveMintRequest {
         request_hash: String,
     },
     RejectMintRequest {
