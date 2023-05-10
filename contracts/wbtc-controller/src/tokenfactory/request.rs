@@ -13,7 +13,7 @@ use crate::ContractError;
 
 use super::nonce::Nonce;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum RequestStatus {
     Pending,
     Approved,
@@ -21,7 +21,7 @@ pub enum RequestStatus {
     Rejected,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestInfo {
     pub requester: Addr,
     pub amount: Uint128,
@@ -33,7 +33,7 @@ pub struct RequestInfo {
     pub nonce: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {
     pub info: RequestInfo,
     pub status: RequestStatus,
@@ -95,7 +95,7 @@ impl<'a> RequestManager<'a> {
 
     /// Update status of a pending request to other status.
     /// For all status of the request, only `Pending` status can be updated
-    pub fn update_request_status(
+    pub fn update_request_status_from_pending(
         &self,
         deps: &mut DepsMut,
         request_hash: &str,

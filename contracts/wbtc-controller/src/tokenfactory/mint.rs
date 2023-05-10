@@ -5,7 +5,8 @@ use crate::{
     ContractError,
 };
 use cosmwasm_std::{
-    ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response, Uint128,
+    attr, ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response,
+    Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
@@ -74,7 +75,7 @@ pub fn approve_mint_request(
         nonce,
         contract,
     } = MINT_REQUESTS
-        .update_request_status(&mut deps, &request_hash, RequestStatus::Pending)?
+        .update_request_status_from_pending(&mut deps, &request_hash, RequestStatus::Approved)?
         .info;
 
     ensure!(
@@ -357,5 +358,12 @@ mod tests {
                 })
             ]
         );
+
+        // check mint request status
+        let request = MINT_REQUESTS
+            .get_request(deps.as_ref(), &request_hash)
+            .unwrap();
+
+        assert_eq!(request.status, RequestStatus::Approved);
     }
 }
