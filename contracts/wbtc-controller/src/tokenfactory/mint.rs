@@ -1,6 +1,6 @@
 use crate::{
     auth::{allow_only, Role},
-    tokenfactory::request::Request,
+    tokenfactory::request::RequestInfo,
     tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
@@ -50,7 +50,7 @@ pub fn add_mint_request(
 
     // derived attributes
     let event = event
-        .add_attribute("nonce", request.nonce.to_string())
+        .add_attribute("nonce", request.info.nonce.to_string())
         .add_attribute("request_hash", request_hash);
 
     Ok(Response::new().add_event(event))
@@ -64,7 +64,7 @@ pub fn approve_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let Request {
+    let RequestInfo {
         requester,
         amount,
         tx_id,
@@ -73,8 +73,9 @@ pub fn approve_mint_request(
         transaction,
         nonce,
         contract,
-        status: _,
-    } = MINT_REQUESTS.approve_request(&mut deps, &request_hash)?;
+    } = MINT_REQUESTS
+        .approve_request(&mut deps, &request_hash)?
+        .info;
 
     ensure!(
         contract.address == contract_address,
@@ -183,7 +184,7 @@ mod tests {
             ContractError::Unauthorized {}
         );
 
-        let hash_on_nonce_0 = "ccD5o4NXxNaqYukHobbmZSf8tYOv1HyzPKG4dT1pGbA=";
+        let hash_on_nonce_0 = "5u8TbLWA7MKMZa6ZpGXTCLbomCnAl0Bj8JxIlLgVjpg=";
 
         assert_eq!(
             add_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
@@ -212,7 +213,7 @@ mod tests {
             .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
-        assert_eq!(request.nonce, Uint128::new(0));
+        assert_eq!(request.info.nonce, Uint128::new(0));
         assert_eq!(request.status, RequestStatus::Pending);
         assert_eq!(request.hash().unwrap().to_base64(), hash_on_nonce_0);
 

@@ -22,7 +22,7 @@ pub enum RequestStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Request {
+pub struct RequestInfo {
     pub requester: Addr,
     pub amount: Uint128,
     pub tx_id: String,
@@ -31,13 +31,18 @@ pub struct Request {
     pub transaction: Option<TransactionInfo>,
     pub contract: ContractInfo,
     pub nonce: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Request {
+    pub info: RequestInfo,
     pub status: RequestStatus,
 }
 
 impl Request {
     pub fn hash(&self) -> StdResult<Binary> {
         let mut hasher = Keccak256::new();
-        hasher.update(to_binary(self)?.to_vec());
+        hasher.update(to_binary(&self.info)?.to_vec());
         Ok(Binary::from(hasher.finalize().to_vec()))
     }
 }
@@ -68,14 +73,16 @@ impl<'a> RequestManager<'a> {
     ) -> Result<(String, Request), ContractError> {
         let nonce = self.nonce.next(deps)?;
         let request = Request {
-            requester,
-            amount,
-            tx_id,
-            deposit_address,
-            block,
-            transaction,
-            contract,
-            nonce,
+            info: RequestInfo {
+                requester,
+                amount,
+                tx_id,
+                deposit_address,
+                block,
+                transaction,
+                contract,
+                nonce,
+            },
             status: RequestStatus::Pending,
         };
         let request_hash = request.hash()?.to_base64();
@@ -135,22 +142,25 @@ mod tests {
     #[test]
     fn test_hash_request() {
         let request = Request {
-            requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
-            amount: Uint128::new(100),
-            tx_id: "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-            block: BlockInfo {
-                height: 1,
-                time: Timestamp::from_seconds(1689069540),
-                chain_id: "osmosis-1".to_string(),
+            info: RequestInfo {
+                requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
+                amount: Uint128::new(100),
+                tx_id: "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
+                    .to_string(),
+                deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
+                block: BlockInfo {
+                    height: 1,
+                    time: Timestamp::from_seconds(1689069540),
+                    chain_id: "osmosis-1".to_string(),
+                },
+                transaction: Some(TransactionInfo { index: 1 }),
+                contract: ContractInfo {
+                    address: Addr::unchecked(
+                        "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
+                    ),
+                },
+                nonce: Uint128::new(3),
             },
-            transaction: Some(TransactionInfo { index: 1 }),
-            contract: ContractInfo {
-                address: Addr::unchecked(
-                    "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                ),
-            },
-            nonce: Uint128::new(3),
             status: RequestStatus::Pending,
         };
 
@@ -172,8 +182,7 @@ mod tests {
             "contract": {
                 "address": "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9"
             },
-            "nonce": "3",
-            "status": "Pending"
+            "nonce": "3"
         }"#;
 
         // strip all spaces & newlines
