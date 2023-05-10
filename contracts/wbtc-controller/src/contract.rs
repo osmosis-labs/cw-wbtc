@@ -12,7 +12,7 @@ use crate::msg::{
     MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::deposit_address::{self, set_custodian_deposit_address};
-use crate::tokenfactory::mint;
+use crate::tokenfactory::{mint, token::TOKEN_DENOM};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
@@ -27,6 +27,9 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    // set token denom
+    TOKEN_DENOM.save(deps.storage, &msg.denom)?;
 
     // Initialize the admin, no auth is required only at contract instantiation
     owner::initialize_owner(deps, msg.owner.as_ref())?;
