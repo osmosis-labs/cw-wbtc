@@ -21,7 +21,8 @@ impl<'a> Nonce<'a> {
         let nonce = self.nonce.may_load(deps.storage)?.unwrap_or_default();
 
         // update nonce to be used for next request
-        self.nonce.save(deps.storage, &(nonce + Uint128::new(1)))?;
+        self.nonce
+            .save(deps.storage, &(nonce.checked_add(Uint128::new(1))?))?;
 
         // return the loaded nonce
         Ok(nonce)
