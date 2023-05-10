@@ -1,4 +1,7 @@
+#[cfg(test)]
+use cosmwasm_std::Deps;
 use cosmwasm_std::{DepsMut, StdResult, Uint128};
+
 use cw_storage_plus::Item;
 
 pub struct Nonce<'a> {
@@ -12,6 +15,7 @@ impl<'a> Nonce<'a> {
         }
     }
 
+    /// Return current nonce and increment it by 1
     pub fn next(&self, deps: &mut DepsMut) -> StdResult<Uint128> {
         // load nonce from state
         let nonce = self.nonce.may_load(deps.storage)?.unwrap_or_default();
@@ -21,5 +25,11 @@ impl<'a> Nonce<'a> {
 
         // return the loaded nonce
         Ok(nonce)
+    }
+
+    #[cfg(test)]
+    /// Current nonce that will be used for the next request
+    pub fn current(&self, deps: Deps) -> StdResult<Uint128> {
+        self.nonce.load(deps.storage)
     }
 }

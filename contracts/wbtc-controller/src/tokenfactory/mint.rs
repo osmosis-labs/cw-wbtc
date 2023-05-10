@@ -1,18 +1,17 @@
 use crate::{
     auth::{allow_only, Role},
-    tokenfactory::request::{Request, RequestStatus},
-    tokenfactory::{nonce::Nonce, token::TOKEN_DENOM},
+    tokenfactory::request::Request,
+    tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
 use cosmwasm_std::{
-    ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response, StdResult,
-    Uint128,
+    ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response, Uint128,
 };
-use cw_storage_plus::Map;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
-const MINT_REQUESTS: Map<String, Request> = Map::new("mint_requests");
-const MINT_NONCE: Nonce = Nonce::new("mint_nonce");
+use super::request::RequestManager;
+
+const MINT_REQUESTS: RequestManager = RequestManager::new("mint_requests", "mint_nonce");
 
 pub fn add_mint_request(
     mut deps: DepsMut,
@@ -23,14 +22,11 @@ pub fn add_mint_request(
     deposit_address: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
-
-    let nonce = MINT_NONCE.next(&mut deps)?;
     let event = Event::new("mint_request_added")
         .add_attribute("requester", info.sender.as_str())
         .add_attribute("amount", amount)
         .add_attribute("tx_id", tx_id.as_str())
         .add_attribute("deposit_address", deposit_address.as_str())
-        .add_attribute("nonce", nonce)
         .add_attribute("block_height", env.block.height.to_string())
         .add_attribute("timestamp", env.block.time.nanos().to_string())
         .add_attribute(
@@ -41,41 +37,32 @@ pub fn add_mint_request(
                 .unwrap_or_default(),
         );
 
-    let request = Request {
-        requester: info.sender,
+    let (request_hash, request) = MINT_REQUESTS.add_request(
+        &mut deps,
+        info.sender,
         amount,
         tx_id,
         deposit_address,
-        block: env.block,
-        transaction: env.transaction,
-        contract: env.contract,
-        nonce,
-        status: RequestStatus::Pending,
-    };
+        env.block,
+        env.transaction,
+        env.contract,
+    )?;
 
-    let request_hash = update_mint_request(&mut deps, &request)?;
-    let event = event.add_attribute("request_hash", request_hash);
+    // derived attributes
+    let event = event
+        .add_attribute("nonce", request.nonce.to_string())
+        .add_attribute("request_hash", request_hash);
 
     Ok(Response::new().add_event(event))
 }
 
 pub fn approve_mint_request(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: MessageInfo,
     contract_address: Addr,
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
-
-    let mut request = MINT_REQUESTS.load(deps.storage, request_hash.clone())?;
-    ensure!(
-        request.status == RequestStatus::Pending,
-        ContractError::ModifyNonPendingRequest { request_hash }
-    );
-
-    request.status = RequestStatus::Approved;
-
-    MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
 
     let Request {
         requester,
@@ -87,7 +74,7 @@ pub fn approve_mint_request(
         nonce,
         contract,
         status: _,
-    } = request;
+    } = MINT_REQUESTS.approve_request(&mut deps, &request_hash)?;
 
     ensure!(
         contract.address == contract_address,
@@ -130,13 +117,6 @@ pub fn approve_mint_request(
     Ok(Response::new()
         .add_messages(mint_to_requester_msgs)
         .add_event(event))
-}
-
-fn update_mint_request(deps: &mut DepsMut, request: &Request) -> StdResult<String> {
-    let request_hash = request.hash()?.to_base64();
-    MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
-
-    Ok(request_hash)
 }
 
 // TODO: test with add and confirm, add and reject, add and cancel
@@ -219,17 +199,17 @@ mod tests {
                         "deposit_address",
                         "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
                     )
-                    .add_attribute("nonce", "0")
                     .add_attribute("block_height", "1")
                     .add_attribute("timestamp", "1689069540000000000")
                     .add_attribute("transaction_index", "1")
+                    .add_attribute("nonce", "0")
                     .add_attribute("request_hash", hash_on_nonce_0)
             )
         );
 
         // mint request should be saved
         let request = MINT_REQUESTS
-            .load(deps.as_ref().storage, hash_on_nonce_0.to_owned())
+            .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
         assert_eq!(request.nonce, Uint128::new(0));
@@ -238,7 +218,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_NONCE.nonce.load(deps.as_ref().storage).unwrap(),
+            MINT_REQUESTS.current_nonce(deps.as_ref()).unwrap(),
             Uint128::new(1)
         );
 
@@ -257,7 +237,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_NONCE.nonce.load(deps.as_ref().storage).unwrap(),
+            MINT_REQUESTS.current_nonce(deps.as_ref()).unwrap(),
             Uint128::new(2)
         );
     }

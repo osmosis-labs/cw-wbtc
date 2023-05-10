@@ -1,8 +1,17 @@
+#[cfg(test)]
+use cosmwasm_std::Deps;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, BlockInfo, ContractInfo, StdResult, TransactionInfo, Uint128,
+    ensure, to_binary, Addr, Binary, BlockInfo, ContractInfo, DepsMut, StdResult, TransactionInfo,
+    Uint128,
 };
+
+use cw_storage_plus::Map;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
+
+use crate::ContractError;
+
+use super::nonce::Nonce;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum RequestStatus {
@@ -30,6 +39,89 @@ impl Request {
         let mut hasher = Keccak256::new();
         hasher.update(to_binary(self)?.to_vec());
         Ok(Binary::from(hasher.finalize().to_vec()))
+    }
+}
+
+pub struct RequestManager<'a> {
+    requests: Map<'a, String, Request>,
+    nonce: Nonce<'a>,
+}
+
+impl<'a> RequestManager<'a> {
+    pub const fn new(requests_namespace: &'a str, nonce_namespaces: &'a str) -> Self {
+        Self {
+            requests: Map::new(requests_namespace),
+            nonce: Nonce::new(nonce_namespaces),
+        }
+    }
+
+    pub fn add_request(
+        &self,
+        deps: &mut DepsMut,
+        requester: Addr,
+        amount: Uint128,
+        tx_id: String,
+        deposit_address: String,
+        block: BlockInfo,
+        transaction: Option<TransactionInfo>,
+        contract: ContractInfo,
+    ) -> Result<(String, Request), ContractError> {
+        let nonce = self.nonce.next(deps)?;
+        let request = Request {
+            requester,
+            amount,
+            tx_id,
+            deposit_address,
+            block,
+            transaction,
+            contract,
+            nonce,
+            status: RequestStatus::Pending,
+        };
+        let request_hash = request.hash()?.to_base64();
+        self.requests
+            .save(deps.storage, request_hash.clone(), &request)?;
+        Ok((request_hash, request))
+    }
+
+    pub fn approve_request(
+        &self,
+        deps: &mut DepsMut,
+        request_hash: &str,
+    ) -> Result<Request, ContractError> {
+        self.update_pending_request_status(deps, request_hash, RequestStatus::Approved)
+    }
+
+    fn update_pending_request_status(
+        &self,
+        deps: &mut DepsMut,
+        request_hash: &str,
+        status: RequestStatus,
+    ) -> Result<Request, ContractError> {
+        let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+        ensure!(
+            request.status == RequestStatus::Pending,
+            ContractError::PendingRequestExpected {
+                request_hash: request_hash.to_string()
+            }
+        );
+
+        request.status = status;
+
+        self.requests
+            .save(deps.storage, request_hash.to_string(), &request)?;
+
+        Ok(request)
+    }
+
+    #[cfg(test)]
+    pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
+        self.nonce.current(deps)
+    }
+
+    #[cfg(test)]
+    pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request> {
+        self.requests.load(deps.storage, request_hash.to_string())
     }
 }
 

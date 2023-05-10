@@ -9,8 +9,8 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Moddify non pending request: {request_hash}")]
-    ModifyNonPendingRequest { request_hash: String },
+    #[error("Expect request to have status `pending`: request_hash: {request_hash}")]
+    PendingRequestExpected { request_hash: String },
 
     #[error("Custodian deposit address not found for merchant {merchant}")]
     CustodianDepositAddressNotFound { merchant: String },
