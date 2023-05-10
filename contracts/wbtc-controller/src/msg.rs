@@ -5,6 +5,7 @@ use cosmwasm_std::{Timestamp, Uint128, Uint64};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub owner: String,
+    pub denom: String,
 }
 
 /// Message type for `execute` entry_point

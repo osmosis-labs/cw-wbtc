@@ -1,7 +1,7 @@
 use crate::{
     auth::{allow_only, Role},
-    nonce::Nonce,
-    request::{Request, RequestStatus},
+    tokenfactory::nonce::Nonce,
+    tokenfactory::request::{Request, RequestStatus},
     ContractError,
 };
 use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Response, StdResult, Uint128};
@@ -22,7 +22,7 @@ pub fn add_mint_request(
 
     let nonce = MINT_NONCE.next(&mut deps)?;
     let event = Event::new("mint_request_added")
-        .add_attribute("sender", info.sender.as_str())
+        .add_attribute("requester", info.sender.as_str())
         .add_attribute("amount", amount)
         .add_attribute("tx_id", tx_id.as_str())
         .add_attribute("deposit_address", deposit_address.as_str())
@@ -55,6 +55,63 @@ pub fn add_mint_request(
     Ok(Response::new().add_event(event))
 }
 
+// pub fn approve_mint_request(
+//     deps: DepsMut,
+//     info: MessageInfo,
+//     contract_address: Addr,
+//     request_hash: String,
+// ) -> Result<Response, ContractError> {
+//     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
+
+//     let mut request = MINT_REQUESTS.load(deps.storage, request_hash.clone())?;
+//     ensure!(
+//         request.status == RequestStatus::Pending,
+//         ContractError::ModifyNonPendingRequest { request_hash }
+//     );
+
+//     request.status = RequestStatus::Approved;
+
+//     MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
+
+//     let Request {
+//         requester,
+//         amount,
+//         tx_id,
+//         deposit_address,
+//         block,
+//         transaction,
+//         nonce,
+//         contract: _,
+//         status: _,
+//     } = request;
+
+//     let event = Event::new("mint_request_approved")
+//         .add_attribute("requester", requester.as_str())
+//         .add_attribute("amount", amount)
+//         .add_attribute("tx_id", tx_id.as_str())
+//         .add_attribute("deposit_address", deposit_address.as_str())
+//         .add_attribute("nonce", nonce)
+//         .add_attribute("block_height", block.height.to_string())
+//         .add_attribute("timestamp", block.time.nanos().to_string())
+//         .add_attribute(
+//             "transaction_index",
+//             transaction
+//                 .as_ref()
+//                 .map(|t| t.index.to_string())
+//                 .unwrap_or_default(),
+//         );
+
+//     // TODO: add msg mint
+//     // let msg = MsgMint {
+//     //     sender: contract_address.to_string(),
+//     //     amount: Some(Coin::new(amount)),
+//     // };
+
+//     // if it for v15, we need to mint and transfer, and contract needs to store token denom
+
+//     Ok(Response::new().add_event(event))
+// }
+
 fn update_mint_request(deps: &mut DepsMut, request: &Request) -> StdResult<String> {
     let request_hash = request.hash()?.to_base64();
     MINT_REQUESTS.save(deps.storage, request_hash.clone(), &request)?;
@@ -65,7 +122,6 @@ fn update_mint_request(deps: &mut DepsMut, request: &Request) -> StdResult<Strin
 // TODO: test with add and confirm, add and reject, add and cancel
 #[cfg(test)]
 mod tests {
-
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_info},
         Addr, BlockInfo, DepsMut, Env, Event, Response, Timestamp, TransactionInfo, Uint128,
@@ -73,8 +129,8 @@ mod tests {
 
     use crate::{
         auth::{custodian, merchant, owner},
-        mint::{add_mint_request, MINT_NONCE, MINT_REQUESTS},
-        request::RequestStatus,
+        tokenfactory::mint::{add_mint_request, MINT_NONCE, MINT_REQUESTS},
+        tokenfactory::request::RequestStatus,
         ContractError,
     };
 
@@ -130,7 +186,7 @@ mod tests {
             add_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
             Response::new().add_event(
                 Event::new("mint_request_added")
-                    .add_attribute("sender", merchant)
+                    .add_attribute("requester", merchant)
                     .add_attribute("amount", "100000000")
                     .add_attribute(
                         "tx_id",

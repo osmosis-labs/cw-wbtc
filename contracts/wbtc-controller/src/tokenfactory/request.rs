@@ -7,7 +7,7 @@ use sha3::{Digest, Keccak256};
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum RequestStatus {
     Pending,
-    Completed,
+    Approved,
     Cancelled,
     Rejected,
 }

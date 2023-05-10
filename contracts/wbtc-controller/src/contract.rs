@@ -6,13 +6,13 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::auth::{custodian, merchant, owner};
-use crate::deposit_address::{self, set_custodian_deposit_address};
 use crate::error::ContractError;
-use crate::mint;
 use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
 };
+use crate::tokenfactory::deposit_address::{self, set_custodian_deposit_address};
+use crate::tokenfactory::mint;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
