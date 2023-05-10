@@ -60,6 +60,8 @@ impl<'a> RequestManager<'a> {
         }
     }
 
+    /// Issue a new request and return pair of `(request_hash, request)`
+    /// with request status set to `Pending`
     pub fn issue_request(
         &self,
         deps: &mut DepsMut,
@@ -91,21 +93,17 @@ impl<'a> RequestManager<'a> {
         Ok((request_hash, request))
     }
 
-    pub fn approve_request(
-        &self,
-        deps: &mut DepsMut,
-        request_hash: &str,
-    ) -> Result<Request, ContractError> {
-        self.update_pending_request_status(deps, request_hash, RequestStatus::Approved)
-    }
-
-    fn update_pending_request_status(
+    /// Update status of a pending request to other status.
+    /// For all status of the request, only `Pending` status can be updated
+    pub fn update_request_status(
         &self,
         deps: &mut DepsMut,
         request_hash: &str,
         status: RequestStatus,
     ) -> Result<Request, ContractError> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+
+        // Ensure that the request is in pending status
         ensure!(
             request.status == RequestStatus::Pending,
             ContractError::PendingRequestExpected {
@@ -122,11 +120,15 @@ impl<'a> RequestManager<'a> {
     }
 
     #[cfg(test)]
+    /// Current nonce that will be used for the next request
+    /// Only used for testing
     pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
         self.nonce.current(deps)
     }
 
     #[cfg(test)]
+    /// Get request by request hash
+    /// Only used for testing
     pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request> {
         self.requests.load(deps.storage, request_hash.to_string())
     }

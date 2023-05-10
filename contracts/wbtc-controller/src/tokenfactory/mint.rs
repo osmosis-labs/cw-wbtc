@@ -1,6 +1,6 @@
 use crate::{
     auth::{allow_only, Role},
-    tokenfactory::request::RequestInfo,
+    tokenfactory::request::{RequestInfo, RequestStatus},
     tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
@@ -74,7 +74,7 @@ pub fn approve_mint_request(
         nonce,
         contract,
     } = MINT_REQUESTS
-        .approve_request(&mut deps, &request_hash)?
+        .update_request_status(&mut deps, &request_hash, RequestStatus::Pending)?
         .info;
 
     ensure!(
