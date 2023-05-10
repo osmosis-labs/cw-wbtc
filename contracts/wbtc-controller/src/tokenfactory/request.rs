@@ -60,7 +60,7 @@ impl<'a> RequestManager<'a> {
         }
     }
 
-    pub fn add_request(
+    pub fn issue_request(
         &self,
         deps: &mut DepsMut,
         requester: Addr,

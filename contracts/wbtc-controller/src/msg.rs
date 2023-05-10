@@ -31,7 +31,7 @@ pub enum ExecuteMsg {
     SetMerchantDepositAddress {
         deposit_address: String,
     },
-    AddMintRequest {
+    IssueMintRequest {
         amount: Uint128,
         tx_id: String,
         deposit_address: String,

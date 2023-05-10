@@ -13,7 +13,7 @@ use super::request::RequestManager;
 
 const MINT_REQUESTS: RequestManager = RequestManager::new("mint_requests", "mint_nonce");
 
-pub fn add_mint_request(
+pub fn issue_mint_request(
     mut deps: DepsMut,
     info: MessageInfo,
     env: Env,
@@ -22,7 +22,7 @@ pub fn add_mint_request(
     deposit_address: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
-    let event = Event::new("mint_request_added")
+    let event = Event::new("mint_request_issued")
         .add_attribute("requester", info.sender.as_str())
         .add_attribute("amount", amount)
         .add_attribute("tx_id", tx_id.as_str())
@@ -37,7 +37,7 @@ pub fn add_mint_request(
                 .unwrap_or_default(),
         );
 
-    let (request_hash, request) = MINT_REQUESTS.add_request(
+    let (request_hash, request) = MINT_REQUESTS.issue_request(
         &mut deps,
         info.sender,
         amount,
@@ -139,7 +139,7 @@ mod tests {
     };
 
     #[test]
-    fn test_add_mint_request() {
+    fn test_issue_mint_request() {
         let owner = "osmo1owner";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
@@ -150,8 +150,8 @@ mod tests {
         custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
 
-        let add_mint_request_fixture = |deps: DepsMut, sender: &str| {
-            add_mint_request(
+        let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
+            issue_mint_request(
                 deps,
                 mock_info(sender, &[]),
                 Env {
@@ -175,21 +175,21 @@ mod tests {
 
         // add mint request fail with unauthorized if not merchant
         assert_eq!(
-            add_mint_request_fixture(deps.as_mut(), owner).unwrap_err(),
+            issue_mint_request_fixture(deps.as_mut(), owner).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
         assert_eq!(
-            add_mint_request_fixture(deps.as_mut(), custodian).unwrap_err(),
+            issue_mint_request_fixture(deps.as_mut(), custodian).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
         let hash_on_nonce_0 = "5u8TbLWA7MKMZa6ZpGXTCLbomCnAl0Bj8JxIlLgVjpg=";
 
         assert_eq!(
-            add_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
+            issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
             Response::new().add_event(
-                Event::new("mint_request_added")
+                Event::new("mint_request_issued")
                     .add_attribute("requester", merchant)
                     .add_attribute("amount", "100000000")
                     .add_attribute(
@@ -224,7 +224,7 @@ mod tests {
         );
 
         // same request with same sender, even on the same tx must result in different hash
-        let hash_on_nonce_1 = add_mint_request_fixture(deps.as_mut(), merchant)
+        let hash_on_nonce_1 = issue_mint_request_fixture(deps.as_mut(), merchant)
             .unwrap()
             .events[0]
             .attributes
@@ -270,7 +270,7 @@ mod tests {
         merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
 
         // add mint request
-        let res = add_mint_request(
+        let res = issue_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
             Env {

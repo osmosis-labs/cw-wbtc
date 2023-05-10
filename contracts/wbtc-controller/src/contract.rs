@@ -77,11 +77,11 @@ pub fn execute(
         ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
         ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
-        ExecuteMsg::AddMintRequest {
+        ExecuteMsg::IssueMintRequest {
             amount,
             tx_id,
             deposit_address,
-        } => mint::add_mint_request(deps, info, env, amount, tx_id, deposit_address),
+        } => mint::issue_mint_request(deps, info, env, amount, tx_id, deposit_address),
         ExecuteMsg::CancelMintRequest { request_hash: _ } => todo!(),
         ExecuteMsg::ApproveMintRequest { request_hash } => {
             tokenfactory::mint::approve_mint_request(deps, info, env.contract.address, request_hash)
