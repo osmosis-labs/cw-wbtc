@@ -100,8 +100,12 @@ impl<'a> RequestManager<'a> {
         deps: &mut DepsMut,
         request_hash: &str,
         status: RequestStatus,
+        precondition: impl Fn(&Request) -> Result<(), ContractError>,
     ) -> Result<Request, ContractError> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+
+        // ensure precondition before updating the request
+        precondition(&request)?;
 
         // Ensure that the request is in pending status
         ensure!(
@@ -120,17 +124,17 @@ impl<'a> RequestManager<'a> {
     }
 
     #[cfg(test)]
-    /// Current nonce that will be used for the next request
-    /// Only used for testing
-    pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
-        self.nonce.current(deps)
-    }
-
-    #[cfg(test)]
     /// Get request by request hash
     /// Only used for testing
     pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request> {
         self.requests.load(deps.storage, request_hash.to_string())
+    }
+
+    #[cfg(test)]
+    /// Current nonce that will be used for the next request
+    /// Only used for testing
+    pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
+        self.nonce.current(deps)
     }
 }
 

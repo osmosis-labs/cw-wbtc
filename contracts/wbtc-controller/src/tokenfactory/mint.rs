@@ -57,6 +57,47 @@ pub fn issue_mint_request(
     Ok(Response::new().add_event(event))
 }
 
+pub fn cancel_mint_request(
+    mut deps: DepsMut,
+    info: MessageInfo,
+    contract_address: Addr,
+    request_hash: String,
+) -> Result<Response, ContractError> {
+    // update request status to `Cancelled`
+    let request = MINT_REQUESTS.update_request_status_from_pending(
+        &mut deps,
+        &request_hash,
+        RequestStatus::Cancelled,
+        |request| {
+            // ensure sender is the requester
+            ensure!(
+                request.info.requester == info.sender,
+                ContractError::Unauthorized {}
+            );
+
+            // ensure contract address matched request's contract address
+            ensure!(
+                request.info.contract.address == contract_address,
+                ContractError::Std(cosmwasm_std::StdError::generic_err(
+                    "unreachable: contract address mismatch"
+                ))
+            );
+
+            Ok(())
+        },
+    )?;
+
+    // construct event attributes
+    let attrs = vec![
+        attr("method", "cancel_mint_request"),
+        attr("sender", info.sender.as_str()),
+        attr("nonce", request.info.nonce.to_string()),
+        attr("request_hash", request_hash.as_str()),
+    ];
+
+    Ok(Response::new().add_attributes(attrs))
+}
+
 pub fn approve_mint_request(
     mut deps: DepsMut,
     info: MessageInfo,
@@ -73,17 +114,24 @@ pub fn approve_mint_request(
         block,
         transaction,
         nonce,
-        contract,
+        contract: _,
     } = MINT_REQUESTS
-        .update_request_status_from_pending(&mut deps, &request_hash, RequestStatus::Approved)?
-        .info;
+        .update_request_status_from_pending(
+            &mut deps,
+            &request_hash,
+            RequestStatus::Approved,
+            |request| {
+                ensure!(
+                    request.info.contract.address == contract_address,
+                    ContractError::Std(cosmwasm_std::StdError::generic_err(
+                        "unreachable: contract address mismatch"
+                    ))
+                );
 
-    ensure!(
-        contract.address == contract_address,
-        ContractError::Std(cosmwasm_std::StdError::generic_err(
-            "unreachable: contract address mismatch"
-        ))
-    );
+                Ok(())
+            },
+        )?
+        .info;
 
     let event = Event::new("mint_request_approved")
         .add_attribute("requester", requester.as_str())
@@ -242,6 +290,82 @@ mod tests {
             MINT_REQUESTS.current_nonce(deps.as_ref()).unwrap(),
             Uint128::new(2)
         );
+    }
+
+    #[test]
+    fn test_cancel_mint_request() {
+        let owner = "osmo1owner";
+        let custodian = "osmo1custodian";
+        let merchant = "osmo1merchant";
+        let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let mut deps = mock_dependencies();
+
+        let denom = "factory/osmo1owner/wbtc";
+        let amount = Uint128::new(100_000_000);
+
+        // setup
+        contract::instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(owner, &[]),
+            crate::msg::InstantiateMsg {
+                owner: owner.to_string(),
+                denom: denom.to_string(),
+            },
+        )
+        .unwrap();
+
+        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+
+        // add mint request
+        let res = issue_mint_request(
+            deps.as_mut(),
+            mock_info(merchant, &[]),
+            Env {
+                block: BlockInfo {
+                    height: 1,
+                    time: Timestamp::from_seconds(1689069540),
+                    chain_id: "osmosis-1".to_string(),
+                },
+                transaction: Some(TransactionInfo { index: 1 }),
+                contract: cosmwasm_std::ContractInfo {
+                    address: Addr::unchecked(contract),
+                },
+            },
+            amount,
+            "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
+            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
+        )
+        .unwrap();
+
+        let request_hash = res.events[0]
+            .attributes
+            .iter()
+            .find(|attr| attr.key == "request_hash")
+            .unwrap()
+            .value
+            .clone();
+
+        // cancel mint request fail with unauthorized if not requester
+        let err = cancel_mint_request(
+            deps.as_mut(),
+            mock_info(owner, &[]),
+            Addr::unchecked(contract),
+            request_hash.clone(),
+        )
+        .unwrap_err();
+
+        assert_eq!(err, ContractError::Unauthorized {});
+
+        // cancel mint request succeed if requester
+        cancel_mint_request(
+            deps.as_mut(),
+            mock_info(merchant, &[]),
+            Addr::unchecked(contract),
+            request_hash,
+        )
+        .unwrap();
     }
 
     #[test]

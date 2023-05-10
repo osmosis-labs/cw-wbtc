@@ -13,6 +13,7 @@ use crate::msg::{
 };
 use crate::tokenfactory;
 use crate::tokenfactory::deposit_address::{self, set_custodian_deposit_address};
+use crate::tokenfactory::mint::cancel_mint_request;
 use crate::tokenfactory::{mint, token::TOKEN_DENOM};
 
 // version info for migration info
@@ -82,7 +83,9 @@ pub fn execute(
             tx_id,
             deposit_address,
         } => mint::issue_mint_request(deps, info, env, amount, tx_id, deposit_address),
-        ExecuteMsg::CancelMintRequest { request_hash: _ } => todo!(),
+        ExecuteMsg::CancelMintRequest { request_hash } => {
+            cancel_mint_request(deps, info, env.contract.address, request_hash)
+        }
         ExecuteMsg::ApproveMintRequest { request_hash } => {
             tokenfactory::mint::approve_mint_request(deps, info, env.contract.address, request_hash)
         }
