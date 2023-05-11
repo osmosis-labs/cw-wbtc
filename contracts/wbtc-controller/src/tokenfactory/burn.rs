@@ -38,7 +38,7 @@ pub fn burn(
         env.contract,
     )?;
 
-    let mut attrs = method_attrs("burn", <Vec<Attribute>>::from(&request.info));
+    let mut attrs = method_attrs("burn", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -60,7 +60,7 @@ pub fn confirm_burn_request(
         |request| {
             // ensure contract address matched request's contract address
             ensure!(
-                request.info.contract.address == env.contract.address,
+                request.data.contract.address == env.contract.address,
                 ContractError::Std(cosmwasm_std::StdError::generic_err(
                     "unreachable: contract address mismatch"
                 ))
@@ -74,7 +74,7 @@ pub fn confirm_burn_request(
 
     let mut attrs = method_attrs(
         "confirm_burn_request",
-        <Vec<Attribute>>::from(&request.info),
+        <Vec<Attribute>>::from(&request.data),
     );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 

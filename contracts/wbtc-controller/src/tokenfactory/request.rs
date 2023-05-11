@@ -38,7 +38,7 @@ impl std::fmt::Display for TxId {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct RequestInfo {
+pub struct RequestData {
     pub requester: Addr,
     pub amount: Uint128,
     pub tx_id: TxId,
@@ -49,7 +49,7 @@ pub struct RequestInfo {
     pub nonce: Uint128,
 }
 
-impl RequestInfo {
+impl RequestData {
     pub fn hash(&self) -> StdResult<Binary> {
         let mut hasher = Keccak256::new();
         hasher.update(to_binary(&self)?.to_vec());
@@ -57,10 +57,9 @@ impl RequestInfo {
     }
 }
 
-// impl From<RequestInfo> for Vec<Attributes>
-impl From<&RequestInfo> for Vec<Attribute> {
-    fn from(info: &RequestInfo) -> Self {
-        let RequestInfo {
+impl From<&RequestData> for Vec<Attribute> {
+    fn from(data: &RequestData) -> Self {
+        let RequestData {
             requester,
             amount,
             tx_id,
@@ -70,7 +69,7 @@ impl From<&RequestInfo> for Vec<Attribute> {
             nonce,
             // don't include contract info in attributes since it's already exists as `_contract_address` by default
             contract: _,
-        } = info;
+        } = data;
         vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
@@ -92,7 +91,7 @@ impl From<&RequestInfo> for Vec<Attribute> {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Request {
-    pub info: RequestInfo,
+    pub data: RequestData,
     pub status: RequestStatus,
 }
 
@@ -124,7 +123,7 @@ impl<'a> RequestManager<'a> {
     ) -> Result<(String, Request), ContractError> {
         let nonce = self.nonce.next(deps)?;
         let request = Request {
-            info: RequestInfo {
+            data: RequestData {
                 requester,
                 amount,
                 tx_id,
@@ -136,7 +135,7 @@ impl<'a> RequestManager<'a> {
             },
             status: RequestStatus::Pending,
         };
-        let request_hash = request.info.hash()?.to_base64();
+        let request_hash = request.data.hash()?.to_base64();
         self.requests
             .save(deps.storage, request_hash.clone(), &request)?;
         Ok((request_hash, request))
@@ -182,7 +181,7 @@ impl<'a> RequestManager<'a> {
     ) -> StdResult<Request> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
 
-        request.info.tx_id = TxId::Confirmed(tx_id);
+        request.data.tx_id = TxId::Confirmed(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
 
@@ -214,7 +213,7 @@ mod tests {
     #[test]
     fn test_hash_request() {
         let request = Request {
-            info: RequestInfo {
+            data: RequestData {
                 requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
                 amount: Uint128::new(100),
                 tx_id: TxId::Confirmed(
@@ -237,7 +236,7 @@ mod tests {
             status: RequestStatus::Pending,
         };
 
-        let struct_hash = request.info.hash().unwrap();
+        let struct_hash = request.data.hash().unwrap();
 
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",

@@ -1,7 +1,7 @@
 use crate::{
     auth::{allow_only, Role},
     helpers::method_attrs,
-    tokenfactory::request::{RequestInfo, RequestStatus},
+    tokenfactory::request::{RequestData, RequestStatus},
     tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
@@ -36,7 +36,7 @@ pub fn issue_mint_request(
         env.contract,
     )?;
 
-    let mut attrs = method_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.info));
+    let mut attrs = method_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -56,13 +56,13 @@ pub fn cancel_mint_request(
         |request| {
             // ensure sender is the requester
             ensure!(
-                request.info.requester == info.sender,
+                request.data.requester == info.sender,
                 ContractError::Unauthorized {}
             );
 
             // ensure contract address matched request's contract address
             ensure!(
-                request.info.contract.address == contract_address,
+                request.data.contract.address == contract_address,
                 ContractError::Std(cosmwasm_std::StdError::generic_err(
                     "unreachable: contract address mismatch"
                 ))
@@ -73,7 +73,7 @@ pub fn cancel_mint_request(
     )?;
 
     // construct event attributes
-    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.info));
+    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -87,14 +87,14 @@ pub fn approve_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let request_info = MINT_REQUESTS
+    let request_data = MINT_REQUESTS
         .update_request_status_from_pending(
             &mut deps,
             &request_hash,
             RequestStatus::Approved,
             |request| {
                 ensure!(
-                    request.info.contract.address == contract_address,
+                    request.data.contract.address == contract_address,
                     ContractError::Std(cosmwasm_std::StdError::generic_err(
                         "unreachable: contract address mismatch"
                     ))
@@ -103,15 +103,15 @@ pub fn approve_mint_request(
                 Ok(())
             },
         )?
-        .info;
+        .data;
 
     // construct event attributes
-    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_info));
+    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
-    let RequestInfo {
+    let RequestData {
         requester, amount, ..
-    } = request_info;
+    } = request_data;
 
     let denom = TOKEN_DENOM.load(deps.storage)?;
 
@@ -140,14 +140,14 @@ pub fn reject_mint_request(
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
-    let request_info = MINT_REQUESTS
+    let request_data = MINT_REQUESTS
         .update_request_status_from_pending(
             &mut deps,
             &request_hash,
             RequestStatus::Rejected,
             |request| {
                 ensure!(
-                    request.info.contract.address == contract_address,
+                    request.data.contract.address == contract_address,
                     ContractError::Std(cosmwasm_std::StdError::generic_err(
                         "unreachable: contract address mismatch"
                     ))
@@ -156,9 +156,9 @@ pub fn reject_mint_request(
                 Ok(())
             },
         )?
-        .info;
+        .data;
 
-    let mut attrs = method_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_info));
+    let mut attrs = method_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -257,9 +257,9 @@ mod tests {
             .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
-        assert_eq!(request.info.nonce, Uint128::new(0));
+        assert_eq!(request.data.nonce, Uint128::new(0));
         assert_eq!(request.status, RequestStatus::Pending);
-        assert_eq!(request.info.hash().unwrap().to_base64(), hash_on_nonce_0);
+        assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
 
         // nonce should be incremented
         assert_eq!(
