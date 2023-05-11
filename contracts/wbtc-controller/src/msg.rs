@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Timestamp, Uint128, Uint64};
 
 /// Message type for `instantiate` entry_point
 #[cw_serde]
@@ -156,12 +156,12 @@ pub struct IsCustodianResponse {
 
 #[cw_serde]
 pub struct GetCustodianResponse {
-    pub address: String,
+    pub address: Addr,
 }
 
 #[cw_serde]
 pub struct GetOwnerResponse {
-    pub address: String,
+    pub address: Addr,
 }
 
 #[cw_serde]

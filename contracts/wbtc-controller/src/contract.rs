@@ -10,8 +10,8 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCrea
 use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
-    MigrateMsg, QueryMsg,
+    ExecuteMsg, GetCustodianDepositAddressResponse, GetCustodianResponse, GetOwnerResponse,
+    InstantiateMsg, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::mint;
 use crate::tokenfactory::{deposit_address, token};
@@ -132,17 +132,21 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             is_custodian: custodian::is_custodian(deps, &deps.api.addr_validate(&address)?)?,
         }),
         QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
-            address: custodian::get_custodian(deps)?.to_string(),
+            address: custodian::get_custodian(deps)?,
         }),
-        QueryMsg::GetOwner {} => to_binary(&owner::get_owner(deps)?.to_string()),
-        QueryMsg::IsOwner { address } => {
-            to_binary(&owner::is_owner(deps, &deps.api.addr_validate(&address)?)?)
-        }
+        QueryMsg::GetOwner {} => to_binary(&GetOwnerResponse {
+            address: owner::get_owner(deps)?,
+        }),
+        QueryMsg::IsOwner { address } => to_binary(&IsOwnerResponse {
+            is_owner: owner::is_owner(deps, &deps.api.addr_validate(&address)?)?,
+        }),
         QueryMsg::GetCustodianDepositAddress { merchant } => {
-            to_binary(&deposit_address::get_custodian_deposit_address(
-                deps,
-                &deps.api.addr_validate(&merchant)?,
-            )?)
+            to_binary(&GetCustodianDepositAddressResponse {
+                address: deposit_address::get_custodian_deposit_address(
+                    deps,
+                    &deps.api.addr_validate(&merchant)?,
+                )?,
+            })
         }
         QueryMsg::GetMerchantDepositAddress { merchant } => {
             to_binary(&deposit_address::get_merchant_deposit_address(
