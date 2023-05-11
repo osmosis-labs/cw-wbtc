@@ -6,7 +6,8 @@ use crate::{
     ContractError,
 };
 use cosmwasm_std::{
-    attr, ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
+    attr, ensure, Addr, Attribute, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response,
+    Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
@@ -24,25 +25,6 @@ pub fn issue_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
-    let mut attrs = method_attrs(
-        "issue_mint_request",
-        vec![
-            attr("requester", info.sender.as_str()),
-            attr("amount", amount),
-            attr("tx_id", tx_id.as_str()),
-            attr("deposit_address", deposit_address.as_str()),
-            attr("block_height", env.block.height.to_string()),
-            attr("timestamp", env.block.time.nanos().to_string()),
-            attr(
-                "transaction_index",
-                env.transaction
-                    .as_ref()
-                    .map(|t| t.index.to_string())
-                    .unwrap_or_default(),
-            ),
-        ],
-    );
-
     let (request_hash, request) = MINT_REQUESTS.issue_request(
         &mut deps,
         info.sender,
@@ -54,11 +36,8 @@ pub fn issue_mint_request(
         env.contract,
     )?;
 
-    // derived attributes
-    attrs.extend(vec![
-        attr("nonce", request.info.nonce.to_string()),
-        attr("request_hash", request_hash),
-    ]);
+    let mut attrs = method_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.info));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
 }
@@ -94,12 +73,8 @@ pub fn cancel_mint_request(
     )?;
 
     // construct event attributes
-    let attrs = vec![
-        attr("method", "cancel_mint_request"),
-        attr("sender", info.sender.as_str()),
-        attr("nonce", request.info.nonce.to_string()),
-        attr("request_hash", request_hash.as_str()),
-    ];
+    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.info));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
 }
@@ -112,16 +87,7 @@ pub fn approve_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let RequestInfo {
-        requester,
-        amount,
-        tx_id,
-        deposit_address,
-        block,
-        transaction,
-        nonce,
-        contract: _,
-    } = MINT_REQUESTS
+    let request_info = MINT_REQUESTS
         .update_request_status_from_pending(
             &mut deps,
             &request_hash,
@@ -139,25 +105,13 @@ pub fn approve_mint_request(
         )?
         .info;
 
-    let attrs = method_attrs(
-        "approve_mint_request",
-        vec![
-            attr("requester", requester.as_str()),
-            attr("amount", amount),
-            attr("tx_id", tx_id.as_str()),
-            attr("deposit_address", deposit_address.as_str()),
-            attr("nonce", nonce),
-            attr("block_height", block.height.to_string()),
-            attr("timestamp", block.time.nanos().to_string()),
-            attr(
-                "transaction_index",
-                transaction
-                    .as_ref()
-                    .map(|t| t.index.to_string())
-                    .unwrap_or_default(),
-            ),
-        ],
-    );
+    // construct event attributes
+    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_info));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
+
+    let RequestInfo {
+        requester, amount, ..
+    } = request_info;
 
     let denom = TOKEN_DENOM.load(deps.storage)?;
 
@@ -186,16 +140,7 @@ pub fn reject_mint_request(
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
-    let RequestInfo {
-        requester,
-        amount,
-        tx_id,
-        deposit_address,
-        block,
-        transaction,
-        contract: _,
-        nonce,
-    } = MINT_REQUESTS
+    let request_info = MINT_REQUESTS
         .update_request_status_from_pending(
             &mut deps,
             &request_hash,
@@ -213,25 +158,8 @@ pub fn reject_mint_request(
         )?
         .info;
 
-    let attrs = method_attrs(
-        "reject_mint_request",
-        vec![
-            attr("requester", requester.as_str()),
-            attr("amount", amount),
-            attr("tx_id", tx_id.as_str()),
-            attr("deposit_address", deposit_address.as_str()),
-            attr("nonce", nonce),
-            attr("block_height", block.height.to_string()),
-            attr("timestamp", block.time.nanos().to_string()),
-            attr(
-                "transaction_index",
-                transaction
-                    .as_ref()
-                    .map(|t| t.index.to_string())
-                    .unwrap_or_default(),
-            ),
-        ],
-    );
+    let mut attrs = method_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_info));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
 }

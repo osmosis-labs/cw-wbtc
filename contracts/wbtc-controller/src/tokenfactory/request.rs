@@ -1,8 +1,8 @@
 #[cfg(test)]
 use cosmwasm_std::Deps;
 use cosmwasm_std::{
-    ensure, to_binary, Addr, Binary, BlockInfo, ContractInfo, DepsMut, StdResult, TransactionInfo,
-    Uint128,
+    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, DepsMut, StdResult,
+    TransactionInfo, Uint128,
 };
 
 use cw_storage_plus::Map;
@@ -31,6 +31,39 @@ pub struct RequestInfo {
     pub transaction: Option<TransactionInfo>,
     pub contract: ContractInfo,
     pub nonce: Uint128,
+}
+
+// impl From<RequestInfo> for Vec<Attributes>
+impl From<&RequestInfo> for Vec<Attribute> {
+    fn from(info: &RequestInfo) -> Self {
+        let RequestInfo {
+            requester,
+            amount,
+            tx_id,
+            deposit_address,
+            block,
+            transaction,
+            nonce,
+            // don't include contract info in attributes since it's already exists as `_contract_address` by default
+            contract: _,
+        } = info;
+        vec![
+            attr("requester", requester.as_str()),
+            attr("amount", amount.to_string()),
+            attr("tx_id", tx_id.as_str()),
+            attr("deposit_address", deposit_address.as_str()),
+            attr("block_height", block.height.to_string()),
+            attr("timestamp", block.time.nanos().to_string()),
+            attr(
+                "transaction_index",
+                transaction
+                    .as_ref()
+                    .map(|t| t.index.to_string())
+                    .unwrap_or_default(),
+            ),
+            attr("nonce", nonce.to_string()),
+        ]
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
