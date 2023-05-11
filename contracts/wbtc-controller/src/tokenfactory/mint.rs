@@ -259,7 +259,7 @@ mod tests {
 
         assert_eq!(request.info.nonce, Uint128::new(0));
         assert_eq!(request.status, RequestStatus::Pending);
-        assert_eq!(request.hash().unwrap().to_base64(), hash_on_nonce_0);
+        assert_eq!(request.info.hash().unwrap().to_base64(), hash_on_nonce_0);
 
         // nonce should be incremented
         assert_eq!(

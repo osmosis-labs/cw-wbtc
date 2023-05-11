@@ -49,6 +49,14 @@ pub struct RequestInfo {
     pub nonce: Uint128,
 }
 
+impl RequestInfo {
+    pub fn hash(&self) -> StdResult<Binary> {
+        let mut hasher = Keccak256::new();
+        hasher.update(to_binary(&self)?.to_vec());
+        Ok(Binary::from(hasher.finalize().to_vec()))
+    }
+}
+
 // impl From<RequestInfo> for Vec<Attributes>
 impl From<&RequestInfo> for Vec<Attribute> {
     fn from(info: &RequestInfo) -> Self {
@@ -86,14 +94,6 @@ impl From<&RequestInfo> for Vec<Attribute> {
 pub struct Request {
     pub info: RequestInfo,
     pub status: RequestStatus,
-}
-
-impl Request {
-    pub fn hash(&self) -> StdResult<Binary> {
-        let mut hasher = Keccak256::new();
-        hasher.update(to_binary(&self.info)?.to_vec());
-        Ok(Binary::from(hasher.finalize().to_vec()))
-    }
 }
 
 pub struct RequestManager<'a> {
@@ -136,7 +136,7 @@ impl<'a> RequestManager<'a> {
             },
             status: RequestStatus::Pending,
         };
-        let request_hash = request.hash()?.to_base64();
+        let request_hash = request.info.hash()?.to_base64();
         self.requests
             .save(deps.storage, request_hash.clone(), &request)?;
         Ok((request_hash, request))
@@ -237,7 +237,7 @@ mod tests {
             status: RequestStatus::Pending,
         };
 
-        let struct_hash = request.hash().unwrap();
+        let struct_hash = request.info.hash().unwrap();
 
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",
