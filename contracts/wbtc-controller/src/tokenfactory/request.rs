@@ -156,6 +156,23 @@ impl<'a> RequestManager<'a> {
         Ok(request)
     }
 
+    /// Confirm tx_id of a request
+    /// Since tx_id can be unavialable when the request is issued (burn request), it needs to be updated later
+    pub fn confirm_tx_id(
+        &self,
+        deps: DepsMut,
+        request_hash: &str,
+        tx_id: String,
+    ) -> StdResult<Request> {
+        let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+
+        request.info.tx_id = tx_id;
+        self.requests
+            .save(deps.storage, request_hash.to_string(), &request)?;
+
+        Ok(request)
+    }
+
     #[cfg(test)]
     /// Get request by request hash
     /// Only used for testing

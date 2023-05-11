@@ -13,6 +13,7 @@ use crate::msg::{
     ExecuteMsg, GetCustodianDepositAddressResponse, GetCustodianResponse, GetOwnerResponse,
     InstantiateMsg, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
+use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
 use crate::tokenfactory::{deposit_address, token};
 
@@ -106,11 +107,11 @@ pub fn execute(
         ExecuteMsg::RejectMintRequest { request_hash } => {
             mint::reject_mint_request(deps, info, env.contract.address, request_hash)
         }
-        ExecuteMsg::Burn { amount: _ } => todo!(),
+        ExecuteMsg::Burn { amount } => burn::burn(deps, env, info, amount),
         ExecuteMsg::ConfirmBurnRequest {
-            request_hash: _,
-            tx_id: _,
-        } => todo!(),
+            request_hash,
+            tx_id,
+        } => burn::confirm_burn_request(deps, env, info, request_hash, tx_id),
         ExecuteMsg::Pause {} => todo!(),
         ExecuteMsg::Unpause {} => todo!(),
     }
