@@ -111,7 +111,7 @@ impl<'a> RequestManager<'a> {
 
     /// Issue a new request and return pair of `(request_hash, request)`
     /// with request status set to `Pending`
-    pub fn issue_request(
+    pub fn issue(
         &self,
         deps: &mut DepsMut,
         requester: Addr,

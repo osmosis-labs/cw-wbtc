@@ -27,7 +27,7 @@ pub fn burn(
     // set tx_id to empty string, this will be set when the request is confirmed
     let tx_id = String::default();
 
-    let (request_hash, request) = BURN_REQUESTS.issue_request(
+    let (request_hash, request) = BURN_REQUESTS.issue(
         &mut deps,
         info.sender,
         amount,

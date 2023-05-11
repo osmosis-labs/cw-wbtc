@@ -25,7 +25,7 @@ pub fn issue_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
-    let (request_hash, request) = MINT_REQUESTS.issue_request(
+    let (request_hash, request) = MINT_REQUESTS.issue(
         &mut deps,
         info.sender,
         amount,
