@@ -1,8 +1,9 @@
-use cosmwasm_std::{Addr, Deps, DepsMut, Event, MessageInfo, Response, StdError};
+use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Map;
 
 use crate::{
     auth::{allow_only, Role},
+    helpers::method_attrs,
     ContractError,
 };
 
@@ -21,10 +22,14 @@ pub fn set_custodian_deposit_address(
 
     let merchant = deps.api.addr_validate(merchant)?;
 
-    let event = Event::new("custodian_deposit_address_set")
-        .add_attribute("sender", info.sender.as_str())
-        .add_attribute("merchant", merchant.as_str())
-        .add_attribute("deposit_address", deposit_address);
+    let attrs = method_attrs(
+        "custodian_deposit_address_set",
+        vec![
+            attr("sender", info.sender.as_str()),
+            attr("merchant", merchant.as_str()),
+            attr("deposit_address", deposit_address),
+        ],
+    );
 
     CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.save(
         deps.storage,
@@ -32,7 +37,7 @@ pub fn set_custodian_deposit_address(
         &deposit_address.to_string(),
     )?;
 
-    Ok(Response::new().add_event(event))
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<String, StdError> {

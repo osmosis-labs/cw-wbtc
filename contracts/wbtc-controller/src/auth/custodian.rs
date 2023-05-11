@@ -1,7 +1,7 @@
-use cosmwasm_std::{Addr, Deps, DepsMut, Event, MessageInfo, Response, StdError};
+use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
-use crate::ContractError;
+use crate::{helpers::method_attrs, ContractError};
 
 use super::{allow_only, Role};
 
@@ -16,8 +16,8 @@ pub fn set_custodian(
 
     CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let event = Event::new("custodian_set").add_attribute("address", address);
-    Ok(Response::new().add_event(event))
+    let attrs = method_attrs("set_custodian", vec![attr("address", address)]);
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn is_custodian(deps: Deps, address: &Addr) -> Result<bool, StdError> {
@@ -69,8 +69,11 @@ mod tests {
         assert_eq!(
             set_custodian(deps.as_mut(), &mock_info(owner, &[]), &custodian_address)
                 .unwrap()
-                .events,
-            vec![Event::new("custodian_set").add_attribute("address", custodian_address.clone())]
+                .attributes,
+            vec![
+                attr("method", "set_custodian"),
+                attr("address", custodian_address.clone())
+            ]
         );
 
         // check after set will pass

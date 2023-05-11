@@ -1,12 +1,12 @@
 use crate::{
     auth::{allow_only, Role},
+    helpers::method_attrs,
     tokenfactory::request::{RequestInfo, RequestStatus},
     tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
 use cosmwasm_std::{
-    attr, ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, Event, MessageInfo, Response,
-    Uint128,
+    attr, ensure, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
@@ -23,20 +23,25 @@ pub fn issue_mint_request(
     deposit_address: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
-    let event = Event::new("mint_request_issued")
-        .add_attribute("requester", info.sender.as_str())
-        .add_attribute("amount", amount)
-        .add_attribute("tx_id", tx_id.as_str())
-        .add_attribute("deposit_address", deposit_address.as_str())
-        .add_attribute("block_height", env.block.height.to_string())
-        .add_attribute("timestamp", env.block.time.nanos().to_string())
-        .add_attribute(
-            "transaction_index",
-            env.transaction
-                .as_ref()
-                .map(|t| t.index.to_string())
-                .unwrap_or_default(),
-        );
+
+    let mut attrs = method_attrs(
+        "issue_mint_request",
+        vec![
+            attr("requester", info.sender.as_str()),
+            attr("amount", amount),
+            attr("tx_id", tx_id.as_str()),
+            attr("deposit_address", deposit_address.as_str()),
+            attr("block_height", env.block.height.to_string()),
+            attr("timestamp", env.block.time.nanos().to_string()),
+            attr(
+                "transaction_index",
+                env.transaction
+                    .as_ref()
+                    .map(|t| t.index.to_string())
+                    .unwrap_or_default(),
+            ),
+        ],
+    );
 
     let (request_hash, request) = MINT_REQUESTS.issue_request(
         &mut deps,
@@ -50,11 +55,12 @@ pub fn issue_mint_request(
     )?;
 
     // derived attributes
-    let event = event
-        .add_attribute("nonce", request.info.nonce.to_string())
-        .add_attribute("request_hash", request_hash);
+    attrs.extend(vec![
+        attr("nonce", request.info.nonce.to_string()),
+        attr("request_hash", request_hash),
+    ]);
 
-    Ok(Response::new().add_event(event))
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn cancel_mint_request(
@@ -133,21 +139,25 @@ pub fn approve_mint_request(
         )?
         .info;
 
-    let event = Event::new("mint_request_approved")
-        .add_attribute("requester", requester.as_str())
-        .add_attribute("amount", amount)
-        .add_attribute("tx_id", tx_id.as_str())
-        .add_attribute("deposit_address", deposit_address.as_str())
-        .add_attribute("nonce", nonce)
-        .add_attribute("block_height", block.height.to_string())
-        .add_attribute("timestamp", block.time.nanos().to_string())
-        .add_attribute(
-            "transaction_index",
-            transaction
-                .as_ref()
-                .map(|t| t.index.to_string())
-                .unwrap_or_default(),
-        );
+    let attrs = method_attrs(
+        "approve_mint_request",
+        vec![
+            attr("requester", requester.as_str()),
+            attr("amount", amount),
+            attr("tx_id", tx_id.as_str()),
+            attr("deposit_address", deposit_address.as_str()),
+            attr("nonce", nonce),
+            attr("block_height", block.height.to_string()),
+            attr("timestamp", block.time.nanos().to_string()),
+            attr(
+                "transaction_index",
+                transaction
+                    .as_ref()
+                    .map(|t| t.index.to_string())
+                    .unwrap_or_default(),
+            ),
+        ],
+    );
 
     let denom = TOKEN_DENOM.load(deps.storage)?;
 
@@ -166,7 +176,7 @@ pub fn approve_mint_request(
 
     Ok(Response::new()
         .add_messages(mint_to_requester_msgs)
-        .add_event(event))
+        .add_attributes(attrs))
 }
 
 pub fn reject_mint_request(
@@ -203,23 +213,27 @@ pub fn reject_mint_request(
         )?
         .info;
 
-    let event = Event::new("mint_request_rejected")
-        .add_attribute("requester", requester.as_str())
-        .add_attribute("amount", amount)
-        .add_attribute("tx_id", tx_id.as_str())
-        .add_attribute("deposit_address", deposit_address.as_str())
-        .add_attribute("nonce", nonce)
-        .add_attribute("block_height", block.height.to_string())
-        .add_attribute("timestamp", block.time.nanos().to_string())
-        .add_attribute(
-            "transaction_index",
-            transaction
-                .as_ref()
-                .map(|t| t.index.to_string())
-                .unwrap_or_default(),
-        );
+    let attrs = method_attrs(
+        "reject_mint_request",
+        vec![
+            attr("requester", requester.as_str()),
+            attr("amount", amount),
+            attr("tx_id", tx_id.as_str()),
+            attr("deposit_address", deposit_address.as_str()),
+            attr("nonce", nonce),
+            attr("block_height", block.height.to_string()),
+            attr("timestamp", block.time.nanos().to_string()),
+            attr(
+                "transaction_index",
+                transaction
+                    .as_ref()
+                    .map(|t| t.index.to_string())
+                    .unwrap_or_default(),
+            ),
+        ],
+    );
 
-    Ok(Response::new().add_event(event))
+    Ok(Response::new().add_attributes(attrs))
 }
 
 // TODO: test with add and confirm, add and reject, add and cancel
@@ -228,7 +242,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, BankMsg, BlockInfo, Coin, DepsMut, Env, Event, Response, StdError, SubMsg, Timestamp,
+        Addr, BankMsg, BlockInfo, Coin, DepsMut, Env, Response, StdError, SubMsg, Timestamp,
         TransactionInfo, Uint128,
     };
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
@@ -290,24 +304,23 @@ mod tests {
 
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
-            Response::new().add_event(
-                Event::new("mint_request_issued")
-                    .add_attribute("requester", merchant)
-                    .add_attribute("amount", "100000000")
-                    .add_attribute(
-                        "tx_id",
-                        "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
-                    )
-                    .add_attribute(
-                        "deposit_address",
-                        "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
-                    )
-                    .add_attribute("block_height", "1")
-                    .add_attribute("timestamp", "1689069540000000000")
-                    .add_attribute("transaction_index", "1")
-                    .add_attribute("nonce", "0")
-                    .add_attribute("request_hash", hash_on_nonce_0)
-            )
+            Response::new()
+                .add_attribute("method", "issue_mint_request")
+                .add_attribute("requester", merchant)
+                .add_attribute("amount", "100000000")
+                .add_attribute(
+                    "tx_id",
+                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
+                )
+                .add_attribute(
+                    "deposit_address",
+                    "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
+                )
+                .add_attribute("block_height", "1")
+                .add_attribute("timestamp", "1689069540000000000")
+                .add_attribute("transaction_index", "1")
+                .add_attribute("nonce", "0")
+                .add_attribute("request_hash", hash_on_nonce_0)
         );
 
         // mint request should be saved
@@ -328,7 +341,6 @@ mod tests {
         // same request with same sender, even on the same tx must result in different hash
         let hash_on_nonce_1 = issue_mint_request_fixture(deps.as_mut(), merchant)
             .unwrap()
-            .events[0]
             .attributes
             .iter()
             .find(|attr| attr.key == "request_hash")
@@ -392,7 +404,7 @@ mod tests {
         )
         .unwrap();
 
-        let request_hash = res.events[0]
+        let request_hash = res
             .attributes
             .iter()
             .find(|attr| attr.key == "request_hash")
@@ -468,7 +480,7 @@ mod tests {
         )
         .unwrap();
 
-        let request_hash = res.events[0]
+        let request_hash = res
             .attributes
             .iter()
             .find(|attr| attr.key == "request_hash")
@@ -591,7 +603,7 @@ mod tests {
         )
         .unwrap();
 
-        let request_hash = res.events[0]
+        let request_hash = res
             .attributes
             .iter()
             .find(|attr| attr.key == "request_hash")

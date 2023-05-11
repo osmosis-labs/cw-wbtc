@@ -1,7 +1,7 @@
-use cosmwasm_std::{Addr, Deps, DepsMut, Event, MessageInfo, Response, StdError};
+use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Map;
 
-use crate::ContractError;
+use crate::{helpers::method_attrs, ContractError};
 
 use super::{allow_only, Role};
 
@@ -18,8 +18,8 @@ pub fn add_merchant(
 
     MERCHANTS.save(deps.storage, deps.api.addr_validate(address)?, &())?;
 
-    let event = Event::new("merchant_added").add_attribute("address", address);
-    Ok(Response::new().add_event(event))
+    let attrs = method_attrs("add_merchant", vec![attr("address", address)]);
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn remove_merchant(
@@ -31,8 +31,8 @@ pub fn remove_merchant(
 
     MERCHANTS.remove(deps.storage, deps.api.addr_validate(address)?);
 
-    let event = Event::new("merchant_removed").add_attribute("address", address);
-    Ok(Response::new().add_event(event))
+    let attrs = method_attrs("remove_merchant", vec![attr("address", address)]);
+    Ok(Response::new().add_attributes(attrs))
 }
 
 pub fn is_merchant(deps: Deps, address: &Addr) -> Result<bool, StdError> {
@@ -87,8 +87,11 @@ mod tests {
         assert_eq!(
             add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
-                .events,
-            vec![Event::new("merchant_added").add_attribute("address", merchant_address_1)]
+                .attributes,
+            vec![
+                attr("method", "add_merchant"),
+                attr("address", merchant_address_1)
+            ]
         );
 
         assert_eq!(
@@ -104,8 +107,11 @@ mod tests {
         assert_eq!(
             add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_2)
                 .unwrap()
-                .events,
-            vec![Event::new("merchant_added").add_attribute("address", merchant_address_2)]
+                .attributes,
+            vec![
+                attr("method", "add_merchant"),
+                attr("address", merchant_address_2)
+            ]
         );
 
         assert_eq!(
@@ -130,8 +136,11 @@ mod tests {
         assert_eq!(
             remove_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_address_1)
                 .unwrap()
-                .events,
-            vec![Event::new("merchant_removed").add_attribute("address", merchant_address_1)]
+                .attributes,
+            vec![
+                attr("method", "remove_merchant"),
+                attr("address", merchant_address_1)
+            ]
         );
 
         assert_eq!(
