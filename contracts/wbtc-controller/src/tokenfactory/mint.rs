@@ -178,6 +178,7 @@ mod tests {
     use crate::{
         auth::{custodian, merchant, owner},
         contract,
+        helpers::test_helpers::setup_contract,
         tokenfactory::request::RequestStatus,
         ContractError,
     };
@@ -293,20 +294,10 @@ mod tests {
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
         let mut deps = mock_dependencies();
 
-        let denom = "factory/osmo1owner/wbtc";
         let amount = Uint128::new(100_000_000);
 
         // setup
-        contract::instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(owner, &[]),
-            crate::msg::InstantiateMsg {
-                owner: owner.to_string(),
-                denom: denom.to_string(),
-            },
-        )
-        .unwrap();
+        setup_contract(deps.as_mut(), contract, owner, "wbtc").unwrap();
 
         custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
@@ -369,20 +360,10 @@ mod tests {
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
         let mut deps = mock_dependencies();
 
-        let denom = "factory/osmo1owner/wbtc";
         let amount = Uint128::new(100_000_000);
 
         // setup
-        contract::instantiate(
-            deps.as_mut(),
-            mock_env(),
-            mock_info(owner, &[]),
-            crate::msg::InstantiateMsg {
-                owner: owner.to_string(),
-                denom: denom.to_string(),
-            },
-        )
-        .unwrap();
+        let denom = setup_contract(deps.as_mut(), contract, owner, "wbtc").unwrap();
 
         custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
@@ -467,7 +448,7 @@ mod tests {
             vec![
                 SubMsg::new(MsgMint {
                     sender: contract.to_string(),
-                    amount: Some(Coin::new(amount.u128(), denom).into())
+                    amount: Some(Coin::new(amount.u128(), denom.clone()).into())
                 }),
                 SubMsg::new(BankMsg::Send {
                     to_address: merchant.to_string(), // requester
@@ -502,7 +483,7 @@ mod tests {
             mock_info(owner, &[]),
             crate::msg::InstantiateMsg {
                 owner: owner.to_string(),
-                denom: denom.to_string(),
+                subdenom: denom.to_string(),
             },
         )
         .unwrap();

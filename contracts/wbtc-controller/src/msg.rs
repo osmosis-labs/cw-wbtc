@@ -5,7 +5,10 @@ use cosmwasm_std::{Timestamp, Uint128, Uint64};
 #[cw_serde]
 pub struct InstantiateMsg {
     pub owner: String,
-    pub denom: String,
+
+    /// Subdenom of the token that will be created on behalf of this contract
+    /// The resulting denom will be tokenfactory denom: "factory/<contract_address>/<subdenom>"
+    pub subdenom: String,
 }
 
 /// Message type for `execute` entry_point

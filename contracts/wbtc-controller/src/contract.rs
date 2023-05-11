@@ -1,9 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult,
+    SubMsg,
 };
 use cw2::set_contract_version;
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCreateDenomResponse};
 
 use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
@@ -18,25 +20,32 @@ use crate::tokenfactory::{mint, token::TOKEN_DENOM};
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const CREATE_DENOM_REPLY_ID: u64 = 1;
+
 /// Handling contract instantiation
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // set token denom
-    TOKEN_DENOM.save(deps.storage, &msg.denom)?;
-
     // Initialize the admin, no auth is required only at contract instantiation
     owner::initialize_owner(deps, msg.owner.as_ref())?;
 
-    // With `Response` type, it is possible to dispatch message to invoke external logic.
-    // See: https://github.com/CosmWasm/cosmwasm/blob/main/SEMANTICS.md#dispatching-messages
+    // create denom
+    let msg_create_denom = SubMsg::reply_on_success(
+        MsgCreateDenom {
+            sender: env.contract.address.to_string(),
+            subdenom: msg.subdenom,
+        },
+        CREATE_DENOM_REPLY_ID,
+    );
+
     Ok(Response::new()
+        .add_submessage(msg_create_denom)
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender))
 }
@@ -134,9 +143,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 /// Handling submessage reply.
 /// For more info on submessage and reply, see https://github.com/CosmWasm/cosmwasm/blob/main/SEMANTICS.md#submessages
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(_deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
-    // With `Response` type, it is still possible to dispatch message to invoke external logic.
-    // See: https://github.com/CosmWasm/cosmwasm/blob/main/SEMANTICS.md#dispatching-messages
-
-    todo!()
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        CREATE_DENOM_REPLY_ID => {
+            // register created token denom
+            let MsgCreateDenomResponse { new_token_denom } = msg.result.try_into()?;
+            TOKEN_DENOM.save(deps.storage, &new_token_denom)?;
+            Ok(Response::new().add_attribute("new_token_denom", new_token_denom))
+        }
+        _ => Err(StdError::not_found(format!("No reply handler found for: {:?}", msg)).into()),
+    }
 }
