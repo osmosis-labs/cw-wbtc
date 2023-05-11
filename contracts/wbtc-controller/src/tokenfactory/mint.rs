@@ -11,7 +11,7 @@ use cosmwasm_std::{
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
-use super::request::RequestManager;
+use super::request::{RequestManager, TxId};
 
 const MINT_REQUESTS: RequestManager = RequestManager::new("mint_requests", "mint_nonce");
 
@@ -29,7 +29,7 @@ pub fn issue_mint_request(
         &mut deps,
         info.sender,
         amount,
-        tx_id,
+        TxId::Confirmed(tx_id),
         deposit_address,
         env.block,
         env.transaction,
@@ -229,7 +229,7 @@ mod tests {
             ContractError::Unauthorized {}
         );
 
-        let hash_on_nonce_0 = "5u8TbLWA7MKMZa6ZpGXTCLbomCnAl0Bj8JxIlLgVjpg=";
+        let hash_on_nonce_0 = "cC2AqyP3sgYXmlq+QfOZ+VWucw9HVj/tw2CkqPE6h9E=";
 
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),

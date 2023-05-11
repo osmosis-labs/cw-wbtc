@@ -8,7 +8,7 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{RequestManager, RequestStatus},
+    request::{RequestManager, RequestStatus, TxId},
 };
 
 const BURN_REQUESTS: RequestManager = RequestManager::new("burn_requests", "burn_nonce");
@@ -31,7 +31,7 @@ pub fn burn(
         &mut deps,
         info.sender,
         amount,
-        tx_id,
+        TxId::Confirmed(tx_id),
         deposit_address,
         env.block,
         env.transaction,

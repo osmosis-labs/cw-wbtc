@@ -21,11 +21,27 @@ pub enum RequestStatus {
     Rejected,
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum TxId {
+    Pending,
+    Confirmed(String),
+}
+
+impl std::fmt::Display for TxId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TxId::Pending => write!(f, "<pending>"),
+            TxId::Confirmed(tx_id) => write!(f, "{}", tx_id),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RequestInfo {
     pub requester: Addr,
     pub amount: Uint128,
-    pub tx_id: String,
+    pub tx_id: TxId,
     pub deposit_address: String,
     pub block: BlockInfo,
     pub transaction: Option<TransactionInfo>,
@@ -50,7 +66,7 @@ impl From<&RequestInfo> for Vec<Attribute> {
         vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
-            attr("tx_id", tx_id.as_str()),
+            attr("tx_id", tx_id.to_string()),
             attr("deposit_address", deposit_address.as_str()),
             attr("block_height", block.height.to_string()),
             attr("timestamp", block.time.nanos().to_string()),
@@ -100,7 +116,7 @@ impl<'a> RequestManager<'a> {
         deps: &mut DepsMut,
         requester: Addr,
         amount: Uint128,
-        tx_id: String,
+        tx_id: TxId,
         deposit_address: String,
         block: BlockInfo,
         transaction: Option<TransactionInfo>,
@@ -166,7 +182,7 @@ impl<'a> RequestManager<'a> {
     ) -> StdResult<Request> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
 
-        request.info.tx_id = tx_id;
+        request.info.tx_id = TxId::Confirmed(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
 
@@ -201,8 +217,9 @@ mod tests {
             info: RequestInfo {
                 requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
                 amount: Uint128::new(100),
-                tx_id: "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
-                    .to_string(),
+                tx_id: TxId::Confirmed(
+                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
+                ),
                 deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
                 block: BlockInfo {
                     height: 1,
@@ -225,7 +242,9 @@ mod tests {
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",
             "amount": "100",
-            "tx_id": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf",
+            "tx_id": {
+                "confirmed": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
+            },
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
             "block": {
                 "height": 1,
