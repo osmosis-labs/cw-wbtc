@@ -70,7 +70,7 @@ pub fn confirm_burn_request(
         },
     )?;
 
-    BURN_REQUESTS.confirm_tx_id(deps, request_hash.as_str(), tx_id)?;
+    BURN_REQUESTS.confirm_tx(deps, request_hash.as_str(), tx_id)?;
 
     let mut attrs = method_attrs(
         "confirm_burn_request",

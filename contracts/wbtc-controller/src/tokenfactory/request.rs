@@ -174,7 +174,7 @@ impl<'a> RequestManager<'a> {
 
     /// Confirm tx_id of a request
     /// Since tx_id can be unavialable when the request is issued (burn request), it needs to be updated later
-    pub fn confirm_tx_id(
+    pub fn confirm_tx(
         &self,
         deps: DepsMut,
         request_hash: &str,
