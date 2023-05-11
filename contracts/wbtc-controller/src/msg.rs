@@ -100,6 +100,9 @@ pub enum QueryMsg {
 
     #[returns(GetCustodianDepositAddressResponse)]
     GetCustodianDepositAddress { merchant: String },
+
+    #[returns(GetMerchantDepositAddressResponse)]
+    GetMerchantDepositAddress { merchant: String },
 }
 
 #[cw_serde]
@@ -168,5 +171,10 @@ pub struct IsOwnerResponse {
 
 #[cw_serde]
 pub struct GetCustodianDepositAddressResponse {
+    pub address: String,
+}
+
+#[cw_serde]
+pub struct GetMerchantDepositAddressResponse {
     pub address: String,
 }

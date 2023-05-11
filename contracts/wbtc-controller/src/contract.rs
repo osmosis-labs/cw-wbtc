@@ -13,7 +13,7 @@ use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
 };
-use crate::tokenfactory::deposit_address::{self, set_custodian_deposit_address};
+use crate::tokenfactory::deposit_address;
 use crate::tokenfactory::{mint, token::TOKEN_DENOM};
 
 // version info for migration info
@@ -81,10 +81,17 @@ pub fn execute(
         ExecuteMsg::SetCustodianDepositAddress {
             merchant,
             deposit_address,
-        } => set_custodian_deposit_address(deps, &info, merchant.as_str(), &deposit_address),
+        } => deposit_address::set_custodian_deposit_address(
+            deps,
+            &info,
+            merchant.as_str(),
+            &deposit_address,
+        ),
         ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
         ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
-        ExecuteMsg::SetMerchantDepositAddress { deposit_address: _ } => todo!(),
+        ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
+            deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
+        }
         ExecuteMsg::IssueMintRequest {
             amount,
             tx_id,
@@ -133,6 +140,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetCustodianDepositAddress { merchant } => {
             to_binary(&deposit_address::get_custodian_deposit_address(
+                deps,
+                &deps.api.addr_validate(&merchant)?,
+            )?)
+        }
+        QueryMsg::GetMerchantDepositAddress { merchant } => {
+            to_binary(&deposit_address::get_merchant_deposit_address(
                 deps,
                 &deps.api.addr_validate(&merchant)?,
             )?)

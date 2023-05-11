@@ -59,7 +59,7 @@ impl From<&RequestInfo> for Vec<Attribute> {
                 transaction
                     .as_ref()
                     .map(|t| t.index.to_string())
-                    .unwrap_or_default(),
+                    .unwrap_or("none".to_string()),
             ),
             attr("nonce", nonce.to_string()),
         ]

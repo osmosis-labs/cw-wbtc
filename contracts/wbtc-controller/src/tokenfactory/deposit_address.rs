@@ -1,4 +1,4 @@
-use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
+use cosmwasm_std::{attr, Addr, Attribute, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Map;
 
 use crate::{
@@ -7,10 +7,52 @@ use crate::{
     ContractError,
 };
 
-// mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
-// by using a different deposit address per merchant the custodian can identify which merchant deposited.
-const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: Map<Addr, String> =
-    Map::new("custodian_deposit_address_per_merchant");
+pub struct DepositAddressStore<'a> {
+    deposit_address: Map<'a, Addr, String>,
+    setter_role: Role,
+}
+
+impl<'a> DepositAddressStore<'a> {
+    pub const fn new(namespace: &'a str, setter_role: Role) -> Self {
+        DepositAddressStore {
+            deposit_address: Map::new(namespace),
+            setter_role,
+        }
+    }
+
+    pub fn set_deposit_address(
+        &self,
+        deps: DepsMut,
+        info: &MessageInfo,
+        merchant: &str,
+        deposit_address: &str,
+    ) -> Result<Vec<Attribute>, ContractError> {
+        allow_only(&[self.setter_role], &info.sender, deps.as_ref())?;
+
+        let merchant = deps.api.addr_validate(merchant)?;
+
+        let attrs = vec![
+            attr("sender", info.sender.as_str()),
+            attr("merchant", merchant.as_str()),
+            attr("deposit_address", deposit_address),
+        ];
+
+        self.deposit_address
+            .save(deps.storage, merchant, &deposit_address.to_string())?;
+
+        Ok(attrs)
+    }
+
+    pub fn get_deposit_address(&self, deps: Deps, merchant: &Addr) -> Result<String, StdError> {
+        self.deposit_address.load(deps.storage, merchant.clone())
+    }
+}
+
+/// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
+/// by using a different deposit address per merchant the custodian can identify which merchant deposited.
+/// Only custodian can set this addresses.
+const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressStore =
+    DepositAddressStore::new("custodian_deposit_address_per_merchant", Role::Custodian);
 
 pub fn set_custodian_deposit_address(
     deps: DepsMut,
@@ -18,30 +60,43 @@ pub fn set_custodian_deposit_address(
     merchant: &str,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
-
-    let merchant = deps.api.addr_validate(merchant)?;
-
-    let attrs = method_attrs(
-        "custodian_deposit_address_set",
-        vec![
-            attr("sender", info.sender.as_str()),
-            attr("merchant", merchant.as_str()),
-            attr("deposit_address", deposit_address),
-        ],
-    );
-
-    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.save(
-        deps.storage,
-        merchant,
-        &deposit_address.to_string(),
-    )?;
-
-    Ok(Response::new().add_attributes(attrs))
+    Ok(Response::new().add_attributes(method_attrs(
+        "set_custodian_deposit_address",
+        CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.set_deposit_address(
+            deps,
+            info,
+            merchant,
+            deposit_address,
+        )?,
+    )))
 }
 
 pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<String, StdError> {
-    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.load(deps.storage, merchant.clone())
+    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.get_deposit_address(deps, merchant)
+}
+
+/// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
+const MERCHANT_DEPOSIT_ADDRESS: DepositAddressStore =
+    DepositAddressStore::new("merchant_deposit_address", Role::Merchant);
+
+pub fn set_merchant_deposit_address(
+    deps: DepsMut,
+    info: &MessageInfo,
+    deposit_address: &str,
+) -> Result<Response, ContractError> {
+    Ok(Response::new().add_attributes(method_attrs(
+        "set_merchant_deposit_address",
+        MERCHANT_DEPOSIT_ADDRESS.set_deposit_address(
+            deps,
+            info,
+            &info.sender.to_string(),
+            deposit_address,
+        )?,
+    )))
+}
+
+pub fn get_merchant_deposit_address(deps: Deps, merchant: &Addr) -> Result<String, StdError> {
+    MERCHANT_DEPOSIT_ADDRESS.get_deposit_address(deps, merchant)
 }
 
 #[cfg(test)]
@@ -52,7 +107,7 @@ mod tests {
     use crate::auth::{custodian, merchant, owner};
 
     #[test]
-    fn test_custodian_deposit_address() {
+    fn test_custodian_deposit_address_per_merchant() {
         let mut deps = mock_dependencies();
         let owner = "osmo1owner";
         let custodian = "osmo1custodian";
@@ -114,6 +169,87 @@ mod tests {
 
         assert_eq!(
             get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap(),
+            deposit_address_2.to_string()
+        );
+    }
+    #[test]
+    fn test_merchant_deposit_address() {
+        let mut deps = mock_dependencies();
+        let owner = "osmo1owner";
+        let custodian = "osmo1custodian";
+        let merchant_1 = "osmo1merchant1";
+        let merchant_2 = "osmo1merchant2";
+        let deposit_address_1 = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+        let deposit_address_2 = "bc1q35rayrk92pvwamwm4n2hsd3epez2g2tqcqa0fx";
+
+        // setup
+        owner::initialize_owner(deps.as_mut(), owner).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(&owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_2).unwrap();
+
+        // no merchant deposit address set yet
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap_err(),
+            StdError::not_found("alloc::string::String")
+        );
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap_err(),
+            StdError::not_found("alloc::string::String")
+        );
+
+        // non-merchant cannot set merchant deposit address
+        assert_eq!(
+            set_merchant_deposit_address(
+                deps.as_mut(),
+                &mock_info(&owner, &[]),
+                deposit_address_1,
+            )
+            .unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+        assert_eq!(
+            set_merchant_deposit_address(
+                deps.as_mut(),
+                &mock_info(&custodian, &[]),
+                deposit_address_1,
+            )
+            .unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+        assert_eq!(
+            set_merchant_deposit_address(
+                deps.as_mut(),
+                &mock_info("anyone", &[]),
+                deposit_address_1,
+            )
+            .unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        // set merchant deposit address for merchant 1
+        set_merchant_deposit_address(
+            deps.as_mut(),
+            &mock_info(&merchant_1, &[]),
+            deposit_address_1,
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap(),
+            deposit_address_1.to_string()
+        );
+
+        // set merchant deposit address for merchant 2
+        set_merchant_deposit_address(
+            deps.as_mut(),
+            &mock_info(&merchant_2, &[]),
+            deposit_address_2,
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap(),
             deposit_address_2.to_string()
         );
     }

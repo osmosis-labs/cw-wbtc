@@ -6,6 +6,7 @@ pub mod custodian;
 pub mod merchant;
 pub mod owner;
 
+#[derive(Clone, Copy)]
 pub enum Role {
     Owner,
     Merchant,
