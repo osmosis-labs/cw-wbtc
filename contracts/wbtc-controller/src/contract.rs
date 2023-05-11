@@ -13,8 +13,8 @@ use crate::msg::{
     ExecuteMsg, GetCustodianResponse, InstantiateMsg, IsCustodianResponse, IsMerchantResponse,
     MigrateMsg, QueryMsg,
 };
-use crate::tokenfactory::deposit_address;
-use crate::tokenfactory::{mint, token::TOKEN_DENOM};
+use crate::tokenfactory::mint;
+use crate::tokenfactory::{deposit_address, token};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
@@ -124,7 +124,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetMintRequestsLength {} => todo!(),
         QueryMsg::GetBurnRequest { nonce: _ } => todo!(),
         QueryMsg::GetBurnRequestsLength {} => todo!(),
-        QueryMsg::GetTokenDenom {} => todo!(),
+        QueryMsg::GetTokenDenom {} => to_binary(&token::get_token_denom(deps.storage)?),
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
             is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
         }),
@@ -161,7 +161,8 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         CREATE_DENOM_REPLY_ID => {
             // register created token denom
             let MsgCreateDenomResponse { new_token_denom } = msg.result.try_into()?;
-            TOKEN_DENOM.save(deps.storage, &new_token_denom)?;
+            token::set_token_denom(deps.storage, &new_token_denom)?;
+
             Ok(Response::new().add_attribute("new_token_denom", new_token_denom))
         }
         _ => Err(StdError::not_found(format!("No reply handler found for: {:?}", msg)).into()),
