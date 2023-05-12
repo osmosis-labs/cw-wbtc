@@ -13,7 +13,8 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::request::{RequestManager, TxId};
 
-const MINT_REQUESTS: RequestManager = RequestManager::new("mint_requests", "mint_nonce");
+const MINT_REQUESTS: RequestManager<RequestStatus> =
+    RequestManager::new("mint_requests", "mint_nonce");
 
 pub fn issue_mint_request(
     mut deps: DepsMut,
@@ -408,7 +409,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request").into()
+            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::request::RequestStatus>").into()
         );
 
         // approve mint request with non existing request hash by merchant should fail
@@ -531,7 +532,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request").into()
+            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::request::RequestStatus>").into()
         );
 
         // reject mint request with non existing request hash by merchant should fail

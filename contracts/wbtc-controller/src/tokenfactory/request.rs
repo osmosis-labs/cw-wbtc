@@ -6,7 +6,7 @@ use cosmwasm_std::{
 };
 
 use cw_storage_plus::Map;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
 use crate::ContractError;
@@ -19,6 +19,16 @@ pub enum RequestStatus {
     Approved,
     Cancelled,
     Rejected,
+}
+
+pub trait Status {
+    fn initial() -> Self;
+}
+
+impl Status for RequestStatus {
+    fn initial() -> Self {
+        RequestStatus::Pending
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -90,17 +100,20 @@ impl From<&RequestData> for Vec<Attribute> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Request {
+pub struct Request<S> {
     pub data: RequestData,
-    pub status: RequestStatus,
+    pub status: S,
 }
 
-pub struct RequestManager<'a> {
-    requests: Map<'a, String, Request>,
+pub struct RequestManager<'a, S> {
+    requests: Map<'a, String, Request<S>>,
     nonce: Nonce<'a>,
 }
 
-impl<'a> RequestManager<'a> {
+impl<'a, S> RequestManager<'a, S>
+where
+    S: Status + Serialize + DeserializeOwned + PartialEq + Clone,
+{
     pub const fn new(requests_namespace: &'a str, nonce_namespaces: &'a str) -> Self {
         Self {
             requests: Map::new(requests_namespace),
@@ -120,7 +133,7 @@ impl<'a> RequestManager<'a> {
         block: BlockInfo,
         transaction: Option<TransactionInfo>,
         contract: ContractInfo,
-    ) -> Result<(String, Request), ContractError> {
+    ) -> Result<(String, Request<S>), ContractError> {
         let nonce = self.nonce.next(deps)?;
         let request = Request {
             data: RequestData {
@@ -133,7 +146,7 @@ impl<'a> RequestManager<'a> {
                 contract,
                 nonce,
             },
-            status: RequestStatus::Pending,
+            status: S::initial(),
         };
         let request_hash = request.data.hash()?.to_base64();
         self.requests
@@ -147,17 +160,17 @@ impl<'a> RequestManager<'a> {
         &self,
         deps: &mut DepsMut,
         request_hash: &str,
-        status: RequestStatus,
-        precondition: impl Fn(&Request) -> Result<(), ContractError>,
-    ) -> Result<Request, ContractError> {
+        status: S,
+        precondition: impl Fn(&Request<S>) -> Result<(), ContractError>,
+    ) -> Result<Request<S>, ContractError> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
 
         // ensure precondition before updating the request
         precondition(&request)?;
 
-        // Ensure that the request is in pending status
+        // Ensure that the request is in initial status
         ensure!(
-            request.status == RequestStatus::Pending,
+            request.status == S::initial(),
             ContractError::PendingRequestExpected {
                 request_hash: request_hash.to_string()
             }
@@ -178,7 +191,7 @@ impl<'a> RequestManager<'a> {
         deps: DepsMut,
         request_hash: &str,
         tx_id: String,
-    ) -> StdResult<Request> {
+    ) -> StdResult<Request<S>> {
         let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
 
         request.data.tx_id = TxId::Confirmed(tx_id);
@@ -191,7 +204,7 @@ impl<'a> RequestManager<'a> {
     #[cfg(test)]
     /// Get request by request hash
     /// Only used for testing
-    pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request> {
+    pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request<S>> {
         self.requests.load(deps.storage, request_hash.to_string())
     }
 

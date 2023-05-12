@@ -11,7 +11,8 @@ use super::{
     request::{RequestManager, RequestStatus, TxId},
 };
 
-const BURN_REQUESTS: RequestManager = RequestManager::new("burn_requests", "burn_nonce");
+const BURN_REQUESTS: RequestManager<RequestStatus> =
+    RequestManager::new("burn_requests", "burn_nonce");
 
 pub fn burn(
     mut deps: DepsMut,
