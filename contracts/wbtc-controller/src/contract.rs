@@ -10,9 +10,10 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCrea
 use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, GetBurnRequestByNonceResponse, GetCustodianDepositAddressResponse,
-    GetCustodianResponse, GetMintRequestByNonceResponse, GetOwnerResponse, GetTokenDenomResponse,
-    InstantiateMsg, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
+    ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
+    GetCustodianDepositAddressResponse, GetCustodianResponse, GetMintRequestByHashResponse,
+    GetMintRequestByNonceResponse, GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg,
+    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -122,6 +123,7 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        // === mint ===
         QueryMsg::GetMintRequestByNonce { nonce } => {
             let (request_hash, request) = mint::get_mint_request_by_nonce(deps, &nonce)?;
             to_binary(&GetMintRequestByNonceResponse {
@@ -129,7 +131,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 request,
             })
         }
+        QueryMsg::GetMintRequestByHash { request_hash } => {
+            to_binary(&GetMintRequestByHashResponse {
+                request: mint::get_mint_request_by_hash(deps, &request_hash)?,
+            })
+        }
         QueryMsg::GetMintRequestsLength {} => todo!(),
+
+        // === burn ===
         QueryMsg::GetBurnRequestByNonce { nonce } => {
             let (request_hash, request) = burn::get_burn_request_by_nonce(deps, &nonce)?;
             to_binary(&GetBurnRequestByNonceResponse {
@@ -137,10 +146,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 request,
             })
         }
+        QueryMsg::GetBurnRequestByHash { request_hash } => {
+            to_binary(&GetBurnRequestByHashResponse {
+                request: burn::get_burn_request_by_hash(deps, &request_hash)?,
+            })
+        }
         QueryMsg::GetBurnRequestsLength {} => todo!(),
+
+        // === token ===
         QueryMsg::GetTokenDenom {} => to_binary(&GetTokenDenomResponse {
             denom: token::get_token_denom(deps.storage)?,
         }),
+
+        // === auth ===
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
             is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
         }),
@@ -156,6 +174,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::IsOwner { address } => to_binary(&IsOwnerResponse {
             is_owner: owner::is_owner(deps, &deps.api.addr_validate(&address)?)?,
         }),
+
+        // == deposit address ==
         QueryMsg::GetCustodianDepositAddress { merchant } => {
             to_binary(&GetCustodianDepositAddressResponse {
                 address: deposit_address::get_custodian_deposit_address(

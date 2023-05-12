@@ -71,11 +71,17 @@ pub enum QueryMsg {
     #[returns(GetMintRequestByNonceResponse)]
     GetMintRequestByNonce { nonce: Uint128 },
 
+    #[returns(GetMintRequestByHashResponse)]
+    GetMintRequestByHash { request_hash: String },
+
     #[returns(GetMintRequestsLengthResponse)]
     GetMintRequestsLength {},
 
     #[returns(GetBurnRequestByNonceResponse)]
     GetBurnRequestByNonce { nonce: Uint128 },
+
+    #[returns(GetBurnRequestByHashResponse)]
+    GetBurnRequestByHash { request_hash: String },
 
     #[returns(GetBurnRequestsLengthResponse)]
     GetBurnRequestsLength {},
@@ -112,6 +118,11 @@ pub struct GetMintRequestByNonceResponse {
 }
 
 #[cw_serde]
+pub struct GetMintRequestByHashResponse {
+    pub request: MintRequest,
+}
+
+#[cw_serde]
 pub struct GetMintRequestsLengthResponse {
     pub length: Uint64,
 }
@@ -119,6 +130,11 @@ pub struct GetMintRequestsLengthResponse {
 #[cw_serde]
 pub struct GetBurnRequestByNonceResponse {
     pub request_hash: String,
+    pub request: BurnRequest,
+}
+
+#[cw_serde]
+pub struct GetBurnRequestByHashResponse {
     pub request: BurnRequest,
 }
 

@@ -133,6 +133,10 @@ pub fn get_burn_request_by_nonce(deps: Deps, nonce: &Uint128) -> StdResult<(Stri
     burn_requests().get_request_by_nonce(deps, nonce)
 }
 
+pub fn get_burn_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<BurnRequest> {
+    burn_requests().get_request(deps, request_hash)
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{

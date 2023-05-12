@@ -230,9 +230,6 @@ where
             .ok_or(StdError::not_found(format!("Request with nonce: {nonce}")))?
     }
 
-    #[cfg(test)]
-    /// Get request by request hash
-    /// Only used for testing
     pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request<S>> {
         self.requests.load(deps.storage, request_hash.to_string())
     }

@@ -194,6 +194,10 @@ pub fn get_mint_request_by_nonce(deps: Deps, nonce: &Uint128) -> StdResult<(Stri
     mint_requests().get_request_by_nonce(deps, nonce)
 }
 
+pub fn get_mint_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<MintRequest> {
+    mint_requests().get_request(deps, request_hash)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
