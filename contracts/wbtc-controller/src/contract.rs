@@ -11,8 +11,8 @@ use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByNonceResponse, GetCustodianDepositAddressResponse,
-    GetCustodianResponse, GetMintRequestByNonceResponse, GetOwnerResponse, InstantiateMsg,
-    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
+    GetCustodianResponse, GetMintRequestByNonceResponse, GetOwnerResponse, GetTokenDenomResponse,
+    InstantiateMsg, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -138,7 +138,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             })
         }
         QueryMsg::GetBurnRequestsLength {} => todo!(),
-        QueryMsg::GetTokenDenom {} => to_binary(&token::get_token_denom(deps.storage)?),
+        QueryMsg::GetTokenDenom {} => to_binary(&GetTokenDenomResponse {
+            denom: token::get_token_denom(deps.storage)?,
+        }),
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
             is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
         }),
