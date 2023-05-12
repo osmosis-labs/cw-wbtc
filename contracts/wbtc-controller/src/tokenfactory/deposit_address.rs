@@ -7,14 +7,14 @@ use crate::{
     ContractError,
 };
 
-pub struct DepositAddressStore<'a> {
+pub struct DepositAddressMananger<'a> {
     deposit_address: Map<'a, Addr, String>,
     setter_role: Role,
 }
 
-impl<'a> DepositAddressStore<'a> {
+impl<'a> DepositAddressMananger<'a> {
     pub const fn new(namespace: &'a str, setter_role: Role) -> Self {
-        DepositAddressStore {
+        DepositAddressMananger {
             deposit_address: Map::new(namespace),
             setter_role,
         }
@@ -51,8 +51,8 @@ impl<'a> DepositAddressStore<'a> {
 /// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
 /// by using a different deposit address per merchant the custodian can identify which merchant deposited.
 /// Only custodian can set this addresses.
-const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressStore =
-    DepositAddressStore::new("custodian_deposit_address_per_merchant", Role::Custodian);
+const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressMananger =
+    DepositAddressMananger::new("custodian_deposit_address_per_merchant", Role::Custodian);
 
 pub fn set_custodian_deposit_address(
     deps: DepsMut,
@@ -76,8 +76,8 @@ pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<Stri
 }
 
 /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
-const MERCHANT_DEPOSIT_ADDRESS: DepositAddressStore =
-    DepositAddressStore::new("merchant_deposit_address", Role::Merchant);
+const MERCHANT_DEPOSIT_ADDRESS: DepositAddressMananger =
+    DepositAddressMananger::new("merchant_deposit_address", Role::Merchant);
 
 pub fn set_merchant_deposit_address(
     deps: DepsMut,
