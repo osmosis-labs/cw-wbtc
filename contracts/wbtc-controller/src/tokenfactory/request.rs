@@ -239,11 +239,6 @@ where
         // since nonce is being increment on each request issued, it can be used to count the number of requests
         self.nonce.get(deps)
     }
-
-    #[cfg(test)]
-    pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
-        self.nonce.get(deps)
-    }
 }
 
 #[cfg(test)]

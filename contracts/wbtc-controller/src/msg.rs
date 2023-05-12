@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64};
+use cosmwasm_std::{Addr, Uint128};
 
 use crate::tokenfactory::{burn::BurnRequest, mint::MintRequest};
 
