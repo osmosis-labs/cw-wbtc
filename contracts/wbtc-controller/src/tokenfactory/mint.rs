@@ -34,8 +34,9 @@ impl Status for MintRequestStatus {
     }
 }
 
-const MINT_REQUESTS: RequestManager<MintRequestStatus> =
-    RequestManager::new("mint_requests", "mint_nonce");
+fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
+    RequestManager::new("mint_requests", "mint_requests__nonce", "mint_nonce")
+}
 
 pub fn issue_mint_request(
     deps: DepsMut,
@@ -47,7 +48,7 @@ pub fn issue_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
-    let (request_hash, request) = MINT_REQUESTS.issue(
+    let (request_hash, request) = mint_requests().issue(
         deps,
         info.sender,
         amount,
@@ -71,7 +72,7 @@ pub fn cancel_mint_request(
     request_hash: String,
 ) -> Result<Response, ContractError> {
     // update request status to `Cancelled`
-    let request = MINT_REQUESTS.check_and_update_request_status(
+    let request = mint_requests().check_and_update_request_status(
         deps,
         &request_hash,
         MintRequestStatus::Cancelled,
@@ -109,7 +110,7 @@ pub fn approve_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let request_data = MINT_REQUESTS
+    let request_data = mint_requests()
         .check_and_update_request_status(
             deps.branch(),
             &request_hash,
@@ -162,7 +163,7 @@ pub fn reject_mint_request(
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
-    let request_data = MINT_REQUESTS
+    let request_data = mint_requests()
         .check_and_update_request_status(
             deps,
             &request_hash,
@@ -273,7 +274,7 @@ mod tests {
         );
 
         // mint request should be saved
-        let request = MINT_REQUESTS
+        let request = mint_requests()
             .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
@@ -283,7 +284,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_REQUESTS.current_nonce(deps.as_ref()).unwrap(),
+            mint_requests().current_nonce(deps.as_ref()).unwrap(),
             Uint128::new(1)
         );
 
@@ -301,7 +302,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            MINT_REQUESTS.current_nonce(deps.as_ref()).unwrap(),
+            mint_requests().current_nonce(deps.as_ref()).unwrap(),
             Uint128::new(2)
         );
     }
@@ -478,7 +479,7 @@ mod tests {
         );
 
         // check mint request status
-        let request = MINT_REQUESTS
+        let request = mint_requests()
             .get_request(deps.as_ref(), &request_hash)
             .unwrap();
 
@@ -586,7 +587,7 @@ mod tests {
         .unwrap();
 
         // check mint request status
-        let request = MINT_REQUESTS
+        let request = mint_requests()
             .get_request(deps.as_ref(), &request_hash)
             .unwrap();
 

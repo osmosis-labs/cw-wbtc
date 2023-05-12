@@ -5,7 +5,7 @@ use cosmwasm_std::{
     TransactionInfo, Uint128,
 };
 
-use cw_storage_plus::Map;
+use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
@@ -92,8 +92,25 @@ pub struct Request<S> {
     pub status: S,
 }
 
-pub struct RequestManager<'a, S> {
-    requests: Map<'a, String, Request<S>>,
+pub struct RequestIndexes<'a, S> {
+    pub nonce: MultiIndex<'a, Vec<u8>, Request<S>, String>,
+}
+
+impl<'a, S> IndexList<Request<S>> for RequestIndexes<'a, S>
+where
+    S: Clone + Serialize + DeserializeOwned + PartialEq + Status,
+{
+    fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Request<S>>> + '_> {
+        let v: Vec<&dyn Index<Request<S>>> = vec![&self.nonce];
+        Box::new(v.into_iter())
+    }
+}
+
+pub struct RequestManager<'a, S>
+where
+    S: Clone + Serialize + DeserializeOwned + PartialEq + Status,
+{
+    requests: IndexedMap<'a, String, Request<S>, RequestIndexes<'a, S>>,
     nonce: Nonce<'a>,
 }
 
@@ -101,10 +118,21 @@ impl<'a, S> RequestManager<'a, S>
 where
     S: Status + Serialize + DeserializeOwned + PartialEq + Clone,
 {
-    pub const fn new(requests_namespace: &'a str, nonce_namespaces: &'a str) -> Self {
+    pub fn new(
+        requests_namespace: &'a str,
+        requests_nonce_idx_namespace: &'a str,
+        nonce_namespace: &'a str,
+    ) -> Self {
+        let indexes = RequestIndexes {
+            nonce: MultiIndex::new(
+                |_pk: &[u8], req: &Request<S>| req.data.nonce.to_be_bytes().to_vec(),
+                requests_namespace,
+                requests_nonce_idx_namespace,
+            ),
+        };
         Self {
-            requests: Map::new(requests_namespace),
-            nonce: Nonce::new(nonce_namespaces),
+            requests: IndexedMap::new(requests_namespace, indexes),
+            nonce: Nonce::new(nonce_namespace),
         }
     }
 

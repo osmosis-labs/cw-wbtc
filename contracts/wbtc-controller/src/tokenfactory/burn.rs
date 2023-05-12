@@ -32,8 +32,9 @@ impl Status for BurnRequestStatus {
     }
 }
 
-const BURN_REQUESTS: RequestManager<BurnRequestStatus> =
-    RequestManager::new("burn_requests", "burn_nonce");
+fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
+    RequestManager::new("burn_requests", "burn_requests__nonce", "burn_nonce")
+}
 
 pub fn burn(
     mut deps: DepsMut,
@@ -47,7 +48,7 @@ pub fn burn(
         deposit_address::get_merchant_deposit_address(deps.as_ref(), &info.sender)?;
 
     // record burn request
-    let (request_hash, request) = BURN_REQUESTS.issue(
+    let (request_hash, request) = burn_requests().issue(
         deps.branch(),
         info.sender,
         amount,
@@ -97,7 +98,7 @@ pub fn confirm_burn_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let request = BURN_REQUESTS.check_and_update_request_status(
+    let request = burn_requests().check_and_update_request_status(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
@@ -114,7 +115,7 @@ pub fn confirm_burn_request(
         },
     )?;
 
-    BURN_REQUESTS.confirm_tx(deps, request_hash.as_str(), tx_id)?;
+    burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
 
     let mut attrs = method_attrs(
         "confirm_burn_request",
@@ -137,7 +138,7 @@ mod tests {
     use crate::{
         auth::{custodian, merchant, owner},
         tokenfactory::{
-            burn::{confirm_burn_request, BurnRequestStatus, BURN_REQUESTS},
+            burn::{burn_requests, confirm_burn_request, BurnRequestStatus},
             deposit_address,
             request::{RequestData, TxId},
             token,
@@ -216,7 +217,7 @@ mod tests {
             .value
             .clone();
 
-        let request = BURN_REQUESTS
+        let request = burn_requests()
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
@@ -354,7 +355,7 @@ mod tests {
             .value
             .clone();
 
-        let request_before = BURN_REQUESTS
+        let request_before = burn_requests()
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
@@ -370,7 +371,7 @@ mod tests {
         )
         .unwrap();
 
-        let request_after = BURN_REQUESTS
+        let request_after = burn_requests()
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
