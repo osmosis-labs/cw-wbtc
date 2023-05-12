@@ -1,9 +1,11 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut,
     Order, StdError, StdResult, TransactionInfo, Uint128,
 };
 
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex, PrefixBound};
+use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
@@ -11,13 +13,12 @@ use crate::ContractError;
 
 use super::nonce::Nonce;
 
-pub trait Status: PartialEq + Eq {
+pub trait Status: PartialEq {
     fn initial() -> Self;
     fn is_updatable(&self) -> bool;
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum TxId {
     Pending,
     Confirmed(String),
@@ -32,7 +33,7 @@ impl std::fmt::Display for TxId {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[cw_serde]
 pub struct RequestData {
     pub requester: Addr,
     pub amount: Uint128,
@@ -84,7 +85,7 @@ impl From<&RequestData> for Vec<Attribute> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 pub struct Request<S> {
     pub data: RequestData,
     pub status: S,
@@ -214,22 +215,19 @@ where
         Ok(request)
     }
 
-    pub fn get_request_by_nonce(&self, deps: Deps, nonce: &Uint128) -> StdResult<Request<S>> {
-        let (_request_hash, request) = self
-            .requests
+    pub fn get_request_by_nonce(
+        &self,
+        deps: Deps,
+        nonce: &Uint128,
+    ) -> StdResult<(String, Request<S>)> {
+        self.requests
             .idx
             .nonce
-            .prefix_range_raw(
-                deps.storage,
-                Some(PrefixBound::inclusive(nonce.to_be_bytes())),
-                Some(PrefixBound::inclusive(nonce.to_be_bytes())),
-                Order::Ascending,
-            )
+            .prefix(nonce.to_be_bytes().to_vec())
+            .range(deps.storage, None, None, Order::Ascending)
             .into_iter()
             .next()
-            .ok_or(StdError::not_found(format!("Request with nonce: {nonce}")))??;
-
-        Ok(request)
+            .ok_or(StdError::not_found(format!("Request with nonce: {nonce}")))?
     }
 
     #[cfg(test)]

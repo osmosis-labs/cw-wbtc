@@ -1,8 +1,9 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, Attribute, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
+    attr, ensure, Attribute, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
-use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::{allow_only, Role},
@@ -12,15 +13,17 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{RequestData, RequestManager, Status, TxId},
+    request::{Request, RequestData, RequestManager, Status, TxId},
     token,
 };
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[cw_serde]
 pub enum BurnRequestStatus {
     Executed,
     Confirmed,
 }
+
+pub type BurnRequest = Request<BurnRequestStatus>;
 
 impl Status for BurnRequestStatus {
     fn initial() -> Self {
@@ -124,6 +127,10 @@ pub fn confirm_burn_request(
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
+}
+
+pub fn get_burn_request_by_nonce(deps: Deps, nonce: &Uint128) -> StdResult<(String, BurnRequest)> {
+    burn_requests().get_request_by_nonce(deps, nonce)
 }
 
 #[cfg(test)]

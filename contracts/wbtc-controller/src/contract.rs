@@ -10,8 +10,9 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCrea
 use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
 use crate::msg::{
-    ExecuteMsg, GetCustodianDepositAddressResponse, GetCustodianResponse, GetOwnerResponse,
-    InstantiateMsg, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
+    ExecuteMsg, GetBurnRequestByNonceResponse, GetCustodianDepositAddressResponse,
+    GetCustodianResponse, GetMintRequestByNonceResponse, GetOwnerResponse, InstantiateMsg,
+    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -121,9 +122,21 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetMintRequest { nonce: _ } => todo!(),
+        QueryMsg::GetMintRequestByNonce { nonce } => {
+            let (request_hash, request) = mint::get_mint_request_by_nonce(deps, &nonce)?;
+            to_binary(&GetMintRequestByNonceResponse {
+                request_hash,
+                request,
+            })
+        }
         QueryMsg::GetMintRequestsLength {} => todo!(),
-        QueryMsg::GetBurnRequest { nonce: _ } => todo!(),
+        QueryMsg::GetBurnRequestByNonce { nonce } => {
+            let (request_hash, request) = burn::get_burn_request_by_nonce(deps, &nonce)?;
+            to_binary(&GetBurnRequestByNonceResponse {
+                request_hash,
+                request,
+            })
+        }
         QueryMsg::GetBurnRequestsLength {} => todo!(),
         QueryMsg::GetTokenDenom {} => to_binary(&token::get_token_denom(deps.storage)?),
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {

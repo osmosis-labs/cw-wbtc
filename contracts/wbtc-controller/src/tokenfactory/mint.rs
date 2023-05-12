@@ -4,25 +4,27 @@ use crate::{
     tokenfactory::request::RequestData,
     ContractError,
 };
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, Addr, Attribute, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response,
-    Uint128,
+    attr, ensure, Addr, Attribute, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
-use serde::{Deserialize, Serialize};
 
 use super::{
-    request::{RequestManager, Status, TxId},
+    request::{Request, RequestManager, Status, TxId},
     token,
 };
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+#[cw_serde]
 pub enum MintRequestStatus {
     Pending,
     Approved,
     Cancelled,
     Rejected,
 }
+
+pub type MintRequest = Request<MintRequestStatus>;
 
 impl Status for MintRequestStatus {
     fn initial() -> Self {
@@ -71,6 +73,7 @@ pub fn cancel_mint_request(
     contract_address: Addr,
     request_hash: String,
 ) -> Result<Response, ContractError> {
+    allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
     // update request status to `Cancelled`
     let request = mint_requests().check_and_update_request_status(
         deps,
@@ -187,6 +190,10 @@ pub fn reject_mint_request(
     Ok(Response::new().add_attributes(attrs))
 }
 
+pub fn get_mint_request_by_nonce(deps: Deps, nonce: &Uint128) -> StdResult<(String, MintRequest)> {
+    mint_requests().get_request_by_nonce(deps, nonce)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,10 +289,10 @@ mod tests {
         assert_eq!(request.status, MintRequestStatus::Pending);
         assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
 
-        let request_by_nonce = mint_requests()
-            .get_request_by_nonce(deps.as_ref(), &Uint128::new(0))
-            .unwrap();
+        let (request_hash_by_nonce, request_by_nonce) =
+            get_mint_request_by_nonce(deps.as_ref(), &Uint128::new(0)).unwrap();
 
+        assert_eq!(request_hash_by_nonce, hash_on_nonce_0);
         assert_eq!(request, request_by_nonce);
 
         // nonce should be incremented
@@ -310,10 +317,10 @@ mod tests {
             .get_request(deps.as_ref(), &hash_on_nonce_1)
             .unwrap();
 
-        let request_by_nonce = mint_requests()
-            .get_request_by_nonce(deps.as_ref(), &Uint128::new(1))
-            .unwrap();
+        let (request_hash_by_nonce, request_by_nonce) =
+            get_mint_request_by_nonce(deps.as_ref(), &Uint128::new(1)).unwrap();
 
+        assert_eq!(request_hash_by_nonce, hash_on_nonce_1);
         assert_eq!(request, request_by_nonce);
 
         // nonce should be incremented

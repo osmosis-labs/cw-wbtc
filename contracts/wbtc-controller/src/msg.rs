@@ -1,5 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Timestamp, Uint128, Uint64};
+use cosmwasm_std::{Addr, Uint128, Uint64};
+
+use crate::tokenfactory::{burn::BurnRequest, mint::MintRequest};
 
 /// Message type for `instantiate` entry_point
 #[cw_serde]
@@ -66,14 +68,14 @@ pub enum MigrateMsg {}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(GetMintRequestResponse)]
-    GetMintRequest { nonce: Uint64 },
+    #[returns(GetMintRequestByNonceResponse)]
+    GetMintRequestByNonce { nonce: Uint128 },
 
     #[returns(GetMintRequestsLengthResponse)]
     GetMintRequestsLength {},
 
-    #[returns(GetBurnRequestResponse)]
-    GetBurnRequest { nonce: Uint64 },
+    #[returns(GetBurnRequestByNonceResponse)]
+    GetBurnRequestByNonce { nonce: Uint128 },
 
     #[returns(GetBurnRequestsLengthResponse)]
     GetBurnRequestsLength {},
@@ -106,15 +108,9 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct GetMintRequestResponse {
-    pub request_nonce: Uint64,
-    pub requester: String,
-    pub amount: Uint64,
-    pub deposit_address: String,
-    pub tx_id: String,
-    pub timestamp: Timestamp,
-    pub status: String,
+pub struct GetMintRequestByNonceResponse {
     pub request_hash: String,
+    pub request: MintRequest,
 }
 
 #[cw_serde]
@@ -123,15 +119,9 @@ pub struct GetMintRequestsLengthResponse {
 }
 
 #[cw_serde]
-pub struct GetBurnRequestResponse {
-    pub request_nonce: Uint64,
-    pub requester: String,
-    pub amount: Uint128,
-    pub deposit_address: String,
-    pub tx_id: String,
-    pub timestamp: Timestamp,
-    pub status: String,
+pub struct GetBurnRequestByNonceResponse {
     pub request_hash: String,
+    pub request: BurnRequest,
 }
 
 #[cw_serde]
