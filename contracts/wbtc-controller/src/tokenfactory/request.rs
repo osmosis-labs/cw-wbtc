@@ -13,7 +13,7 @@ use crate::ContractError;
 
 use super::nonce::Nonce;
 
-pub trait Status: PartialEq {
+pub trait Status: Clone + Serialize + DeserializeOwned + PartialEq + std::fmt::Debug {
     fn initial() -> Self;
     fn is_updatable(&self) -> bool;
 }
@@ -95,28 +95,19 @@ pub struct RequestIndexes<'a, S> {
     pub nonce: MultiIndex<'a, Vec<u8>, Request<S>, String>,
 }
 
-impl<'a, S> IndexList<Request<S>> for RequestIndexes<'a, S>
-where
-    S: Clone + Serialize + DeserializeOwned + PartialEq + Status,
-{
+impl<'a, S: Status> IndexList<Request<S>> for RequestIndexes<'a, S> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Request<S>>> + '_> {
         let v: Vec<&dyn Index<Request<S>>> = vec![&self.nonce];
         Box::new(v.into_iter())
     }
 }
 
-pub struct RequestManager<'a, S>
-where
-    S: Clone + Serialize + DeserializeOwned + PartialEq + Status + std::fmt::Debug,
-{
+pub struct RequestManager<'a, S: Status> {
     requests: IndexedMap<'a, String, Request<S>, RequestIndexes<'a, S>>,
     nonce: Nonce<'a>,
 }
 
-impl<'a, S> RequestManager<'a, S>
-where
-    S: Status + Serialize + DeserializeOwned + PartialEq + Clone + std::fmt::Debug,
-{
+impl<'a, S: Status> RequestManager<'a, S> {
     pub fn new(
         requests_namespace: &'a str,
         requests_nonce_idx_namespace: &'a str,
