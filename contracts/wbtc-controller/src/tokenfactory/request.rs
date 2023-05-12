@@ -112,7 +112,7 @@ where
     /// with request status set to `Pending`
     pub fn issue(
         &self,
-        deps: &mut DepsMut,
+        mut deps: DepsMut,
         requester: Addr,
         amount: Uint128,
         tx_id: TxId,
@@ -121,7 +121,7 @@ where
         transaction: Option<TransactionInfo>,
         contract: ContractInfo,
     ) -> Result<(String, Request<S>), ContractError> {
-        let nonce = self.nonce.next(deps)?;
+        let nonce = self.nonce.next(deps.branch())?;
         let request = Request {
             data: RequestData {
                 requester,
@@ -145,7 +145,7 @@ where
     /// Only request with updatable status can be updated.
     pub fn check_and_update_request_status(
         &self,
-        deps: &mut DepsMut,
+        deps: DepsMut,
         request_hash: &str,
         status: S,
         precondition: impl Fn(&Request<S>) -> Result<(), ContractError>,

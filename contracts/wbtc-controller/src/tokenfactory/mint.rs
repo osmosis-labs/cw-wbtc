@@ -38,7 +38,7 @@ const MINT_REQUESTS: RequestManager<MintRequestStatus> =
     RequestManager::new("mint_requests", "mint_nonce");
 
 pub fn issue_mint_request(
-    mut deps: DepsMut,
+    deps: DepsMut,
     info: MessageInfo,
     env: Env,
     amount: Uint128,
@@ -48,7 +48,7 @@ pub fn issue_mint_request(
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
     let (request_hash, request) = MINT_REQUESTS.issue(
-        &mut deps,
+        deps,
         info.sender,
         amount,
         TxId::Confirmed(tx_id),
@@ -65,14 +65,14 @@ pub fn issue_mint_request(
 }
 
 pub fn cancel_mint_request(
-    mut deps: DepsMut,
+    deps: DepsMut,
     info: MessageInfo,
     contract_address: Addr,
     request_hash: String,
 ) -> Result<Response, ContractError> {
     // update request status to `Cancelled`
     let request = MINT_REQUESTS.check_and_update_request_status(
-        &mut deps,
+        deps,
         &request_hash,
         MintRequestStatus::Cancelled,
         |request| {
@@ -111,7 +111,7 @@ pub fn approve_mint_request(
 
     let request_data = MINT_REQUESTS
         .check_and_update_request_status(
-            &mut deps,
+            deps.branch(),
             &request_hash,
             MintRequestStatus::Approved,
             |request| {
@@ -156,7 +156,7 @@ pub fn approve_mint_request(
 }
 
 pub fn reject_mint_request(
-    mut deps: DepsMut,
+    deps: DepsMut,
     info: MessageInfo,
     contract_address: Addr,
     request_hash: String,
@@ -164,7 +164,7 @@ pub fn reject_mint_request(
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
     let request_data = MINT_REQUESTS
         .check_and_update_request_status(
-            &mut deps,
+            deps,
             &request_hash,
             MintRequestStatus::Rejected,
             |request| {

@@ -48,7 +48,7 @@ pub fn burn(
 
     // record burn request
     let (request_hash, request) = BURN_REQUESTS.issue(
-        &mut deps,
+        deps.branch(),
         info.sender,
         amount,
         // tx_id will later be confirmed by the custodian
@@ -98,7 +98,7 @@ pub fn confirm_burn_request(
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
     let request = BURN_REQUESTS.check_and_update_request_status(
-        &mut deps,
+        deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
         |request| {
