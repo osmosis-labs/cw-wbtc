@@ -14,7 +14,8 @@ use crate::msg::{
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
     GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
     GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
-    IsMerchantResponse, IsOwnerResponse, ListMerchantsResponse, MigrateMsg, QueryMsg,
+    IsMerchantResponse, IsOwnerResponse, ListBurnRequestsResponse, ListMerchantsResponse,
+    ListMintRequestsResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -141,6 +142,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             count: mint::get_mint_request_count(deps)?,
         }),
 
+        QueryMsg::ListMintRequests {
+            limit,
+            start_after_nonce,
+            status,
+        } => to_binary(&ListMintRequestsResponse {
+            requests: mint::list_mint_requests(deps, limit, start_after_nonce, status)?,
+        }),
+
         // === burn ===
         QueryMsg::GetBurnRequestByNonce { nonce } => {
             let (request_hash, request) = burn::get_burn_request_by_nonce(deps, &nonce)?;
@@ -156,6 +165,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::GetBurnRequestsCount {} => to_binary(&GetBurnRequestsCountResponse {
             count: burn::get_burn_request_count(deps)?,
+        }),
+
+        QueryMsg::ListBurnRequests {
+            limit,
+            start_after_nonce,
+            status,
+        } => to_binary(&ListBurnRequestsResponse {
+            requests: burn::list_burn_requests(deps, limit, start_after_nonce, status)?,
         }),
 
         // === token ===

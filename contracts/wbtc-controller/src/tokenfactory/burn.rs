@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, ensure, Attribute, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
@@ -13,7 +15,7 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{Request, RequestData, RequestManager, Status, TxId},
+    request::{Request, RequestData, RequestManager, RequestWithHash, Status, TxId},
     token,
 };
 
@@ -24,7 +26,16 @@ pub enum BurnRequestStatus {
 }
 
 pub type BurnRequest = Request<BurnRequestStatus>;
+pub type BurnRequestWithHash = RequestWithHash<BurnRequestStatus>;
 
+impl Display for BurnRequestStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BurnRequestStatus::Executed => write!(f, "Executed"),
+            BurnRequestStatus::Confirmed => write!(f, "Confirmed"),
+        }
+    }
+}
 impl Status for BurnRequestStatus {
     fn initial() -> Self {
         Self::Executed
@@ -36,7 +47,12 @@ impl Status for BurnRequestStatus {
 }
 
 fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
-    RequestManager::new("burn_requests", "burn_requests__nonce", "burn_nonce")
+    RequestManager::new(
+        "burn_requests",
+        "burn_requests__nonce",
+        "burn_requests__status_and_nonce",
+        "burn_nonce",
+    )
 }
 
 pub fn burn(
@@ -139,6 +155,15 @@ pub fn get_burn_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<Bur
 
 pub fn get_burn_request_count(deps: Deps) -> StdResult<Uint128> {
     burn_requests().get_request_count(deps)
+}
+
+pub fn list_burn_requests(
+    deps: Deps,
+    limit: Option<u32>,
+    start_after_nonce: Option<Uint128>,
+    status: Option<BurnRequestStatus>,
+) -> StdResult<Vec<BurnRequestWithHash>> {
+    burn_requests().list_requests(deps, limit, start_after_nonce, status)
 }
 
 #[cfg(test)]

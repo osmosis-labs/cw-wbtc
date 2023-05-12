@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     auth::{allow_only, Role},
     helpers::method_attrs,
@@ -12,7 +14,7 @@ use cosmwasm_std::{
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::{
-    request::{Request, RequestManager, Status, TxId},
+    request::{Request, RequestManager, RequestWithHash, Status, TxId},
     token,
 };
 
@@ -25,6 +27,18 @@ pub enum MintRequestStatus {
 }
 
 pub type MintRequest = Request<MintRequestStatus>;
+pub type MintRequestWithHash = RequestWithHash<MintRequestStatus>;
+
+impl Display for MintRequestStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MintRequestStatus::Pending => write!(f, "Pending"),
+            MintRequestStatus::Approved => write!(f, "Approved"),
+            MintRequestStatus::Cancelled => write!(f, "Cancelled"),
+            MintRequestStatus::Rejected => write!(f, "Rejected"),
+        }
+    }
+}
 
 impl Status for MintRequestStatus {
     fn initial() -> Self {
@@ -37,7 +51,12 @@ impl Status for MintRequestStatus {
 }
 
 fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
-    RequestManager::new("mint_requests", "mint_requests__nonce", "mint_nonce")
+    RequestManager::new(
+        "mint_requests",
+        "mint_requests__nonce",
+        "mint_requests__status_and_nonce",
+        "mint_nonce",
+    )
 }
 
 pub fn issue_mint_request(
@@ -200,6 +219,15 @@ pub fn get_mint_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<Min
 
 pub fn get_mint_request_count(deps: Deps) -> StdResult<Uint128> {
     mint_requests().get_request_count(deps)
+}
+
+pub fn list_mint_requests(
+    deps: Deps,
+    limit: Option<u32>,
+    start_after_nonce: Option<Uint128>,
+    status: Option<MintRequestStatus>,
+) -> StdResult<Vec<MintRequestWithHash>> {
+    mint_requests().list_requests(deps, limit, start_after_nonce, status)
 }
 
 #[cfg(test)]

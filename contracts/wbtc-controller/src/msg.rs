@@ -1,7 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
 
-use crate::tokenfactory::{burn::BurnRequest, mint::MintRequest};
+use crate::tokenfactory::{
+    burn::{BurnRequest, BurnRequestStatus, BurnRequestWithHash},
+    mint::{MintRequest, MintRequestStatus, MintRequestWithHash},
+};
 
 /// Message type for `instantiate` entry_point
 #[cw_serde]
@@ -77,6 +80,13 @@ pub enum QueryMsg {
     #[returns(GetMintRequestsCountResponse)]
     GetMintRequestsCount {},
 
+    #[returns(ListMintRequestsResponse)]
+    ListMintRequests {
+        limit: Option<u32>,
+        start_after_nonce: Option<Uint128>,
+        status: Option<MintRequestStatus>,
+    },
+
     #[returns(GetBurnRequestByNonceResponse)]
     GetBurnRequestByNonce { nonce: Uint128 },
 
@@ -85,6 +95,13 @@ pub enum QueryMsg {
 
     #[returns(GetBurnRequestsCountResponse)]
     GetBurnRequestsCount {},
+
+    #[returns(ListBurnRequestsResponse)]
+    ListBurnRequests {
+        limit: Option<u32>,
+        start_after_nonce: Option<Uint128>,
+        status: Option<BurnRequestStatus>,
+    },
 
     #[returns(GetTokenDenomResponse)]
     GetTokenDenom {},
@@ -134,6 +151,11 @@ pub struct GetMintRequestsCountResponse {
 }
 
 #[cw_serde]
+pub struct ListMintRequestsResponse {
+    pub requests: Vec<MintRequestWithHash>,
+}
+
+#[cw_serde]
 pub struct GetBurnRequestByNonceResponse {
     pub request_hash: String,
     pub request: BurnRequest,
@@ -147,6 +169,11 @@ pub struct GetBurnRequestByHashResponse {
 #[cw_serde]
 pub struct GetBurnRequestsCountResponse {
     pub count: Uint128,
+}
+
+#[cw_serde]
+pub struct ListBurnRequestsResponse {
+    pub requests: Vec<BurnRequestWithHash>,
 }
 
 #[cw_serde]

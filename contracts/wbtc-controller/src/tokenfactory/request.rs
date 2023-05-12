@@ -1,19 +1,25 @@
+use std::fmt::Display;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut,
     Order, StdError, StdResult, TransactionInfo, Uint128,
 };
 
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
-use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
+use serde::{de::DeserializeOwned, Serialize};
 use sha3::{Digest, Keccak256};
 
-use crate::ContractError;
+use crate::{
+    constants::{DEFAULT_LIMIT, MAX_LIMIT},
+    ContractError,
+};
 
 use super::nonce::Nonce;
 
-pub trait Status: Clone + Serialize + DeserializeOwned + PartialEq + std::fmt::Debug {
+pub trait Status:
+    Clone + Serialize + DeserializeOwned + PartialEq + std::fmt::Debug + Display
+{
     fn initial() -> Self;
     fn is_updatable(&self) -> bool;
 }
@@ -85,19 +91,26 @@ impl From<&RequestData> for Vec<Attribute> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Request<S> {
     pub data: RequestData,
     pub status: S,
 }
 
+#[cw_serde]
+pub struct RequestWithHash<S> {
+    pub request_hash: String,
+    pub request: Request<S>,
+}
+
 pub struct RequestIndexes<'a, S> {
     pub nonce: MultiIndex<'a, Vec<u8>, Request<S>, String>,
+    pub status_and_nonce: MultiIndex<'a, (String, Vec<u8>), Request<S>, String>,
 }
 
 impl<'a, S: Status> IndexList<Request<S>> for RequestIndexes<'a, S> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Request<S>>> + '_> {
-        let v: Vec<&dyn Index<Request<S>>> = vec![&self.nonce];
+        let v: Vec<&dyn Index<Request<S>>> = vec![&self.nonce, &self.status_and_nonce];
         Box::new(v.into_iter())
     }
 }
@@ -111,6 +124,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
     pub fn new(
         requests_namespace: &'a str,
         requests_nonce_idx_namespace: &'a str,
+        requests_status_and_nonce_idx_namespace: &'a str,
         nonce_namespace: &'a str,
     ) -> Self {
         let indexes = RequestIndexes {
@@ -118,6 +132,16 @@ impl<'a, S: Status> RequestManager<'a, S> {
                 |_pk: &[u8], req: &Request<S>| req.data.nonce.to_be_bytes().to_vec(),
                 requests_namespace,
                 requests_nonce_idx_namespace,
+            ),
+            status_and_nonce: MultiIndex::new(
+                |_pk: &[u8], req: &Request<S>| {
+                    (
+                        req.status.to_string(),
+                        req.data.nonce.to_be_bytes().to_vec(),
+                    )
+                },
+                requests_namespace,
+                requests_status_and_nonce_idx_namespace,
             ),
         };
         Self {
@@ -230,21 +254,91 @@ impl<'a, S: Status> RequestManager<'a, S> {
         // since nonce is being increment on each request issued, it can be used to count the number of requests
         self.nonce.get(deps)
     }
+
+    pub fn list_requests(
+        &self,
+        deps: Deps,
+        limit: Option<u32>,
+        start_after_nonce: Option<Uint128>,
+        status: Option<S>,
+    ) -> StdResult<Vec<RequestWithHash<S>>> {
+        let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+        let start_after_bound = start_after_nonce.map(|nonce| (nonce.to_be_bytes().to_vec()));
+
+        match status {
+            Some(status) => self
+                .requests
+                .idx
+                .status_and_nonce
+                .sub_prefix(status.to_string())
+                .range(
+                    deps.storage,
+                    start_after_bound
+                        .map(|nonce| (nonce, String::default()))
+                        .map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|v| {
+                    let (request_hash, request) = v?;
+
+                    Ok(RequestWithHash {
+                        request_hash,
+                        request,
+                    })
+                })
+                .take(limit)
+                .collect(),
+            None => self
+                .requests
+                .idx
+                .nonce
+                .range(
+                    deps.storage,
+                    start_after_bound
+                        .map(|nonce| (nonce, String::default()))
+                        .map(Bound::exclusive),
+                    None,
+                    Order::Ascending,
+                )
+                .map(|v| {
+                    let (request_hash, request) = v?;
+
+                    Ok(RequestWithHash {
+                        request_hash,
+                        request,
+                    })
+                })
+                .take(limit)
+                .collect(),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
 
-    use cosmwasm_std::Timestamp;
+    use cosmwasm_std::{testing::mock_dependencies, Timestamp};
 
     use super::*;
 
-    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+    #[cw_serde]
     pub enum TestRequestStatus {
         Pending,
         Approved,
         Cancelled,
         Rejected,
+    }
+
+    impl Display for TestRequestStatus {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                TestRequestStatus::Pending => write!(f, "Pending"),
+                TestRequestStatus::Approved => write!(f, "Approved"),
+                TestRequestStatus::Cancelled => write!(f, "Cancelled"),
+                TestRequestStatus::Rejected => write!(f, "Rejected"),
+            }
+        }
     }
 
     impl Status for TestRequestStatus {
@@ -255,6 +349,15 @@ mod tests {
         fn is_updatable(&self) -> bool {
             self == &Self::initial()
         }
+    }
+
+    fn test_requests<'a>() -> RequestManager<'a, TestRequestStatus> {
+        RequestManager::new(
+            "test_requests",
+            "test_requests__nonce",
+            "test_requests__status_and_nonce",
+            "test_nonce",
+        )
     }
 
     #[test]
@@ -314,5 +417,155 @@ mod tests {
         let string_hash = Binary::from(hasher.finalize().to_vec());
 
         assert_eq!(struct_hash, string_hash);
+    }
+
+    #[test]
+    fn test_list_requests() {
+        let mut deps = mock_dependencies();
+
+        let base_request_data = RequestData {
+            requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
+            amount: Uint128::new(100),
+            tx_id: TxId::Confirmed(
+                "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
+            ),
+            deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
+            block: BlockInfo {
+                height: 1,
+                time: Timestamp::from_seconds(1689069540),
+                chain_id: "osmosis-1".to_string(),
+            },
+            transaction: Some(TransactionInfo { index: 1 }),
+            contract: ContractInfo {
+                address: Addr::unchecked(
+                    "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
+                ),
+            },
+            nonce: Uint128::new(3),
+        };
+
+        let mut requests: Vec<RequestWithHash<TestRequestStatus>> = Vec::new();
+        for i in 0..200 {
+            let mut status = TestRequestStatus::Pending;
+            if i % 2 == 0 {
+                status = TestRequestStatus::Approved;
+            } else if i % 3 == 0 {
+                status = TestRequestStatus::Cancelled;
+            } else if i % 5 == 0 {
+                status = TestRequestStatus::Rejected;
+            }
+
+            let request = Request {
+                data: RequestData {
+                    nonce: Uint128::new(i),
+                    ..base_request_data.clone()
+                },
+                status,
+            };
+            let request_hash = request.data.hash().unwrap().to_base64();
+            requests.push(RequestWithHash {
+                request_hash: request_hash.clone(),
+                request: request.clone(),
+            });
+            test_requests()
+                .requests
+                .save(deps.as_mut().storage, request_hash, &request)
+                .unwrap();
+        }
+
+        // with out status filter
+        assert_eq!(
+            test_requests()
+                .list_requests(deps.as_ref(), None, None, None)
+                .unwrap(),
+            requests[0..DEFAULT_LIMIT as usize].to_vec()
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(deps.as_ref(), Some(21), None, None)
+                .unwrap(),
+            requests[0..21]
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(deps.as_ref(), Some(999), None, None)
+                .unwrap(),
+            requests[0..MAX_LIMIT as usize]
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(deps.as_ref(), Some(20), Some(Uint128::new(35)), None)
+                .unwrap(),
+            requests[35..(35 + 20)]
+        );
+
+        // with status filter
+        assert_eq!(
+            test_requests()
+                .list_requests(
+                    deps.as_ref(),
+                    Some(1),
+                    None,
+                    Some(TestRequestStatus::Approved)
+                )
+                .unwrap(),
+            requests
+                .clone()
+                .into_iter()
+                .filter(|r| r.request.status == TestRequestStatus::Approved)
+                .take(1 as usize)
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(deps.as_ref(), None, None, Some(TestRequestStatus::Approved))
+                .unwrap(),
+            requests
+                .clone()
+                .into_iter()
+                .filter(|r| r.request.status == TestRequestStatus::Approved)
+                .take(DEFAULT_LIMIT as usize)
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(
+                    deps.as_ref(),
+                    None,
+                    Some(Uint128::new(15)),
+                    Some(TestRequestStatus::Rejected)
+                )
+                .unwrap(),
+            requests
+                .clone()
+                .into_iter()
+                .skip(15)
+                .filter(|r| r.request.status == TestRequestStatus::Rejected)
+                .take(DEFAULT_LIMIT as usize)
+                .collect::<Vec<_>>()
+        );
+
+        assert_eq!(
+            test_requests()
+                .list_requests(
+                    deps.as_ref(),
+                    Some(999),
+                    Some(Uint128::new(88)),
+                    Some(TestRequestStatus::Pending)
+                )
+                .unwrap(),
+            requests
+                .clone()
+                .into_iter()
+                .skip(88)
+                .filter(|r| r.request.status == TestRequestStatus::Pending)
+                .take(MAX_LIMIT as usize)
+                .collect::<Vec<_>>()
+        );
     }
 }
