@@ -155,7 +155,7 @@ where
         // ensure precondition before updating the request
         precondition(&request)?;
 
-        // Ensure that the request is in initial status
+        // Ensure that the request is updatable
         ensure!(
             request.status.is_updatable(),
             ContractError::UpdatableStatusExpected {
