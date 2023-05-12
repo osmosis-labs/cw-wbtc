@@ -1,4 +1,7 @@
-use cosmwasm_std::{attr, ensure, Attribute, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    attr, ensure, Attribute, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
+};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,7 +12,8 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{RequestManager, Status, TxId},
+    request::{RequestData, RequestManager, Status, TxId},
+    token,
 };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -42,24 +46,46 @@ pub fn burn(
     let deposit_address =
         deposit_address::get_merchant_deposit_address(deps.as_ref(), &info.sender)?;
 
-    // set tx_id to empty string, this will be set when the request is confirmed
-    let tx_id = String::default();
-
+    // record burn request
     let (request_hash, request) = BURN_REQUESTS.issue(
         &mut deps,
         info.sender,
         amount,
-        TxId::Confirmed(tx_id),
+        // tx_id will later be confirmed by the custodian
+        TxId::Pending,
         deposit_address,
         env.block,
         env.transaction,
-        env.contract,
+        env.contract.clone(),
     )?;
 
+    // construct attributes
     let mut attrs = method_attrs("burn", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
-    Ok(Response::new().add_attributes(attrs))
+    // construct burn message
+    let RequestData { amount, .. } = request.data;
+    let denom = token::get_token_denom(deps.storage)?;
+    let token_to_burn = Coin::new(amount.u128(), denom);
+    let token_to_burn_vec = vec![token_to_burn.clone()];
+
+    // ensure that funds sent from msg sender matches the amount requested
+    ensure!(
+        info.funds == token_to_burn_vec,
+        ContractError::MismatchedFunds {
+            expected: token_to_burn_vec,
+            actual: info.funds,
+        }
+    );
+
+    // burn the requested amount of tokens
+    let burn_msg: CosmosMsg = MsgBurn {
+        sender: env.contract.address.to_string(),
+        amount: Some(token_to_burn.into()),
+    }
+    .into();
+
+    Ok(Response::new().add_message(burn_msg).add_attributes(attrs))
 }
 
 pub fn confirm_burn_request(

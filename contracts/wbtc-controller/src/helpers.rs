@@ -17,9 +17,7 @@ pub mod test_helpers {
         Addr, ContractInfo, DepsMut, Env,
     };
 
-    use crate::{
-        contract::instantiate, msg::InstantiateMsg, tokenfactory::token::TOKEN_DENOM, ContractError,
-    };
+    use crate::{contract::instantiate, msg::InstantiateMsg, tokenfactory::token, ContractError};
 
     pub fn setup_contract(
         mut deps: DepsMut,
@@ -45,7 +43,7 @@ pub mod test_helpers {
         let new_token_denom = format!("factory/{}/{}", contract_address, subdenom);
 
         // set token denom
-        TOKEN_DENOM.save(deps.storage, &new_token_denom).unwrap();
+        token::set_token_denom(deps.storage, &new_token_denom).unwrap();
 
         Ok(new_token_denom)
     }

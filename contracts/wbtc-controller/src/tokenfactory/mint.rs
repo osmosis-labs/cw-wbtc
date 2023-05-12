@@ -2,7 +2,6 @@ use crate::{
     auth::{allow_only, Role},
     helpers::method_attrs,
     tokenfactory::request::RequestData,
-    tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
 use cosmwasm_std::{
@@ -12,7 +11,10 @@ use cosmwasm_std::{
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 use serde::{Deserialize, Serialize};
 
-use super::request::{RequestManager, Status, TxId};
+use super::{
+    request::{RequestManager, Status, TxId},
+    token,
+};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum MintRequestStatus {
@@ -133,7 +135,7 @@ pub fn approve_mint_request(
         requester, amount, ..
     } = request_data;
 
-    let denom = TOKEN_DENOM.load(deps.storage)?;
+    let denom = token::get_token_denom(deps.storage)?;
 
     let token_to_mint = Coin::new(amount.u128(), denom);
     let mint_to_requester_msgs = vec![
@@ -184,7 +186,6 @@ pub fn reject_mint_request(
     Ok(Response::new().add_attributes(attrs))
 }
 
-// TODO: test with add and confirm, add and reject, add and cancel
 #[cfg(test)]
 mod tests {
     use super::*;
