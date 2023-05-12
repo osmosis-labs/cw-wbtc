@@ -13,22 +13,9 @@ use crate::ContractError;
 
 use super::nonce::Nonce;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
-pub enum RequestStatus {
-    Pending,
-    Approved,
-    Cancelled,
-    Rejected,
-}
-
-pub trait Status {
+pub trait Status: PartialEq + Eq {
     fn initial() -> Self;
-}
-
-impl Status for RequestStatus {
-    fn initial() -> Self {
-        RequestStatus::Pending
-    }
+    fn is_updatable(&self) -> bool;
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
@@ -154,9 +141,9 @@ where
         Ok((request_hash, request))
     }
 
-    /// Update status of a pending request to other status.
-    /// For all status of the request, only `Pending` status can be updated
-    pub fn update_request_status_from_pending(
+    /// Update status of a request.
+    /// Only request with updatable status can be updated.
+    pub fn check_and_update_request_status(
         &self,
         deps: &mut DepsMut,
         request_hash: &str,
@@ -170,8 +157,8 @@ where
 
         // Ensure that the request is in initial status
         ensure!(
-            request.status == S::initial(),
-            ContractError::PendingRequestExpected {
+            request.status.is_updatable(),
+            ContractError::UpdatableStatusExpected {
                 request_hash: request_hash.to_string()
             }
         );
@@ -223,6 +210,24 @@ mod tests {
 
     use super::*;
 
+    #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+    pub enum TestRequestStatus {
+        Pending,
+        Approved,
+        Cancelled,
+        Rejected,
+    }
+
+    impl Status for TestRequestStatus {
+        fn initial() -> Self {
+            Self::Pending
+        }
+
+        fn is_updatable(&self) -> bool {
+            self == &Self::initial()
+        }
+    }
+
     #[test]
     fn test_hash_request() {
         let request = Request {
@@ -246,7 +251,7 @@ mod tests {
                 },
                 nonce: Uint128::new(3),
             },
-            status: RequestStatus::Pending,
+            status: TestRequestStatus::Pending,
         };
 
         let struct_hash = request.data.hash().unwrap();

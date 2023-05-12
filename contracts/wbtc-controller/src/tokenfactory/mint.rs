@@ -1,7 +1,7 @@
 use crate::{
     auth::{allow_only, Role},
     helpers::method_attrs,
-    tokenfactory::request::{RequestData, RequestStatus},
+    tokenfactory::request::RequestData,
     tokenfactory::token::TOKEN_DENOM,
     ContractError,
 };
@@ -10,10 +10,29 @@ use cosmwasm_std::{
     Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
+use serde::{Deserialize, Serialize};
 
-use super::request::{RequestManager, TxId};
+use super::request::{RequestManager, Status, TxId};
 
-const MINT_REQUESTS: RequestManager<RequestStatus> =
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum MintRequestStatus {
+    Pending,
+    Approved,
+    Cancelled,
+    Rejected,
+}
+
+impl Status for MintRequestStatus {
+    fn initial() -> Self {
+        Self::Pending
+    }
+
+    fn is_updatable(&self) -> bool {
+        self == &Self::initial()
+    }
+}
+
+const MINT_REQUESTS: RequestManager<MintRequestStatus> =
     RequestManager::new("mint_requests", "mint_nonce");
 
 pub fn issue_mint_request(
@@ -50,10 +69,10 @@ pub fn cancel_mint_request(
     request_hash: String,
 ) -> Result<Response, ContractError> {
     // update request status to `Cancelled`
-    let request = MINT_REQUESTS.update_request_status_from_pending(
+    let request = MINT_REQUESTS.check_and_update_request_status(
         &mut deps,
         &request_hash,
-        RequestStatus::Cancelled,
+        MintRequestStatus::Cancelled,
         |request| {
             // ensure sender is the requester
             ensure!(
@@ -89,10 +108,10 @@ pub fn approve_mint_request(
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
     let request_data = MINT_REQUESTS
-        .update_request_status_from_pending(
+        .check_and_update_request_status(
             &mut deps,
             &request_hash,
-            RequestStatus::Approved,
+            MintRequestStatus::Approved,
             |request| {
                 ensure!(
                     request.data.contract.address == contract_address,
@@ -142,10 +161,10 @@ pub fn reject_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
     let request_data = MINT_REQUESTS
-        .update_request_status_from_pending(
+        .check_and_update_request_status(
             &mut deps,
             &request_hash,
-            RequestStatus::Rejected,
+            MintRequestStatus::Rejected,
             |request| {
                 ensure!(
                     request.data.contract.address == contract_address,
@@ -180,7 +199,6 @@ mod tests {
         auth::{custodian, merchant, owner},
         contract,
         helpers::test_helpers::setup_contract,
-        tokenfactory::request::RequestStatus,
         ContractError,
     };
 
@@ -259,7 +277,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(request.data.nonce, Uint128::new(0));
-        assert_eq!(request.status, RequestStatus::Pending);
+        assert_eq!(request.status, MintRequestStatus::Pending);
         assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
 
         // nonce should be incremented
@@ -409,7 +427,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::request::RequestStatus>").into()
+            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::mint::MintRequestStatus>").into()
         );
 
         // approve mint request with non existing request hash by merchant should fail
@@ -463,7 +481,7 @@ mod tests {
             .get_request(deps.as_ref(), &request_hash)
             .unwrap();
 
-        assert_eq!(request.status, RequestStatus::Approved);
+        assert_eq!(request.status, MintRequestStatus::Approved);
     }
 
     #[test]
@@ -532,7 +550,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::request::RequestStatus>").into()
+            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::mint::MintRequestStatus>").into()
         );
 
         // reject mint request with non existing request hash by merchant should fail
@@ -571,6 +589,6 @@ mod tests {
             .get_request(deps.as_ref(), &request_hash)
             .unwrap();
 
-        assert_eq!(request.status, RequestStatus::Rejected);
+        assert_eq!(request.status, MintRequestStatus::Rejected);
     }
 }

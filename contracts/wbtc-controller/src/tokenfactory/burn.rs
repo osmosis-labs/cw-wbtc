@@ -1,4 +1,5 @@
 use cosmwasm_std::{attr, ensure, Attribute, DepsMut, Env, MessageInfo, Response, Uint128};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::{allow_only, Role},
@@ -8,10 +9,26 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{RequestManager, RequestStatus, TxId},
+    request::{RequestManager, Status, TxId},
 };
 
-const BURN_REQUESTS: RequestManager<RequestStatus> =
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub enum BurnRequestStatus {
+    Executed,
+    Confirmed,
+}
+
+impl Status for BurnRequestStatus {
+    fn initial() -> Self {
+        Self::Executed
+    }
+
+    fn is_updatable(&self) -> bool {
+        self == &Self::initial()
+    }
+}
+
+const BURN_REQUESTS: RequestManager<BurnRequestStatus> =
     RequestManager::new("burn_requests", "burn_nonce");
 
 pub fn burn(
@@ -54,10 +71,10 @@ pub fn confirm_burn_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let request = BURN_REQUESTS.update_request_status_from_pending(
+    let request = BURN_REQUESTS.check_and_update_request_status(
         &mut deps,
         request_hash.as_str(),
-        RequestStatus::Approved,
+        BurnRequestStatus::Confirmed,
         |request| {
             // ensure contract address matched request's contract address
             ensure!(
