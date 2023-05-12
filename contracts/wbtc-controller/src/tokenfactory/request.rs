@@ -234,9 +234,13 @@ where
         self.requests.load(deps.storage, request_hash.to_string())
     }
 
+    /// Get numbers of requests
+    pub fn get_request_count(&self, deps: Deps) -> StdResult<Uint128> {
+        // since nonce is being increment on each request issued, it can be used to count the number of requests
+        self.nonce.get(deps)
+    }
+
     #[cfg(test)]
-    /// Current nonce that will be used for the next request
-    /// Only used for testing
     pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
         self.nonce.get(deps)
     }

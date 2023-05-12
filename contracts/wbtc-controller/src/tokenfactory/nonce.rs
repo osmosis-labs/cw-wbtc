@@ -1,6 +1,4 @@
-#[cfg(test)]
-use cosmwasm_std::Deps;
-use cosmwasm_std::{DepsMut, StdResult, Uint128};
+use cosmwasm_std::{Deps, DepsMut, StdResult, Uint128};
 
 use cw_storage_plus::Item;
 
@@ -28,7 +26,6 @@ impl<'a> Nonce<'a> {
         Ok(nonce)
     }
 
-    #[cfg(test)]
     /// Current nonce that will be used for the next request
     pub fn get(&self, deps: Deps) -> StdResult<Uint128> {
         self.nonce.load(deps.storage)

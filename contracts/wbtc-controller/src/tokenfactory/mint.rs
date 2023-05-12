@@ -198,6 +198,10 @@ pub fn get_mint_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<Min
     mint_requests().get_request(deps, request_hash)
 }
 
+pub fn get_mint_request_count(deps: Deps) -> StdResult<Uint128> {
+    mint_requests().get_request_count(deps)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,7 +305,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            mint_requests().current_nonce(deps.as_ref()).unwrap(),
+            mint_requests().get_request_count(deps.as_ref()).unwrap(),
             Uint128::new(1)
         );
 
@@ -329,7 +333,7 @@ mod tests {
 
         // nonce should be incremented
         assert_eq!(
-            mint_requests().current_nonce(deps.as_ref()).unwrap(),
+            mint_requests().get_request_count(deps.as_ref()).unwrap(),
             Uint128::new(2)
         );
     }

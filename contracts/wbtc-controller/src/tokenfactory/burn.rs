@@ -137,6 +137,10 @@ pub fn get_burn_request_by_hash(deps: Deps, request_hash: &str) -> StdResult<Bur
     burn_requests().get_request(deps, request_hash)
 }
 
+pub fn get_burn_request_count(deps: Deps) -> StdResult<Uint128> {
+    burn_requests().get_request_count(deps)
+}
+
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{

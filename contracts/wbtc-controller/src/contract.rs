@@ -11,9 +11,10 @@ use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
-    GetCustodianDepositAddressResponse, GetCustodianResponse, GetMintRequestByHashResponse,
-    GetMintRequestByNonceResponse, GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg,
-    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
+    GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
+    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
+    GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
+    IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -136,7 +137,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 request: mint::get_mint_request_by_hash(deps, &request_hash)?,
             })
         }
-        QueryMsg::GetMintRequestsLength {} => todo!(),
+        QueryMsg::GetMintRequestsCount {} => to_binary(&GetMintRequestsCountResponse {
+            count: mint::get_mint_request_count(deps)?,
+        }),
 
         // === burn ===
         QueryMsg::GetBurnRequestByNonce { nonce } => {
@@ -151,7 +154,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 request: burn::get_burn_request_by_hash(deps, &request_hash)?,
             })
         }
-        QueryMsg::GetBurnRequestsLength {} => todo!(),
+        QueryMsg::GetBurnRequestsCount {} => to_binary(&GetBurnRequestsCountResponse {
+            count: burn::get_burn_request_count(deps)?,
+        }),
 
         // === token ===
         QueryMsg::GetTokenDenom {} => to_binary(&GetTokenDenomResponse {
