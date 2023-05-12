@@ -1,4 +1,5 @@
 mod auth;
+mod constants;
 pub mod contract;
 mod error;
 mod helpers;

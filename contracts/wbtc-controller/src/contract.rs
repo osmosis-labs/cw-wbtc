@@ -14,7 +14,7 @@ use crate::msg::{
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
     GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
     GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
-    IsMerchantResponse, IsOwnerResponse, MigrateMsg, QueryMsg,
+    IsMerchantResponse, IsOwnerResponse, ListMerchantsResponse, MigrateMsg, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -166,6 +166,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         // === auth ===
         QueryMsg::IsMerchant { address } => to_binary(&IsMerchantResponse {
             is_merchant: merchant::is_merchant(deps, &deps.api.addr_validate(&address)?)?,
+        }),
+        QueryMsg::ListMerchants { limit, start_after } => to_binary(&ListMerchantsResponse {
+            merchants: merchant::list_merchants(deps, start_after, limit)?,
         }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &deps.api.addr_validate(&address)?)?,

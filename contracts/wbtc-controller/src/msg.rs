@@ -92,6 +92,12 @@ pub enum QueryMsg {
     #[returns(IsMerchantResponse)]
     IsMerchant { address: String },
 
+    #[returns(ListMerchantsResponse)]
+    ListMerchants {
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+
     #[returns(IsCustodianResponse)]
     IsCustodian { address: String },
 
@@ -151,6 +157,11 @@ pub struct GetTokenDenomResponse {
 #[cw_serde]
 pub struct IsMerchantResponse {
     pub is_merchant: bool,
+}
+
+#[cw_serde]
+pub struct ListMerchantsResponse {
+    pub merchants: Vec<Addr>,
 }
 
 #[cw_serde]

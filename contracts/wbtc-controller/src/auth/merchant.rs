@@ -1,7 +1,11 @@
-use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
-use cw_storage_plus::Map;
+use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Order, Response, StdError, StdResult};
+use cw_storage_plus::{Bound, Map};
 
-use crate::{helpers::method_attrs, ContractError};
+use crate::{
+    constants::{DEFAULT_LIMIT, MAX_LIMIT},
+    helpers::method_attrs,
+    ContractError,
+};
 
 use super::{allow_only, Role};
 
@@ -41,7 +45,24 @@ pub fn is_merchant(deps: Deps, address: &Addr) -> Result<bool, StdError> {
         .is_some())
 }
 
-// TODO: list_merchants
+pub fn list_merchants(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<Vec<Addr>, StdError> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let start_after_bound = start_after
+        .map(|addr| deps.api.addr_validate(&addr))
+        .transpose()?
+        .map(Bound::exclusive);
+
+    let merchants = MERCHANTS
+        .keys(deps.storage, start_after_bound, None, Order::Ascending)
+        .take(limit)
+        .collect::<StdResult<Vec<_>>>()?;
+
+    Ok(merchants)
+}
 
 #[cfg(test)]
 mod tests {
@@ -150,6 +171,71 @@ mod tests {
         assert_eq!(
             is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
             true
+        );
+    }
+
+    #[test]
+    fn test_list_merchants() {
+        let mut deps = mock_dependencies();
+        let owner = "osmo1owner";
+
+        // setup
+        owner::initialize_owner(deps.as_mut(), owner).unwrap();
+
+        assert_eq!(
+            list_merchants(deps.as_ref(), None, None).unwrap(),
+            vec![] as Vec<Addr>
+        );
+
+        // add 200 merhants
+        for i in 1..=200 {
+            let merchant_address = format!("osmo1merchant{:0>3}", i);
+            add_merchant(deps.as_mut(), &mock_info(owner, &[]), &merchant_address).unwrap();
+        }
+
+        let first_ten = (1..=10)
+            .map(|i| format!("osmo1merchant{:0>3}", i))
+            .map(Addr::unchecked)
+            .collect::<Vec<Addr>>();
+
+        assert_eq!(
+            list_merchants(deps.as_ref(), None, None).unwrap(),
+            first_ten
+        );
+
+        let first_twenty_one = (1..=21)
+            .map(|i| format!("osmo1merchant{:0>3}", i))
+            .map(Addr::unchecked)
+            .collect::<Vec<Addr>>();
+
+        assert_eq!(
+            list_merchants(deps.as_ref(), None, Some(21)).unwrap(),
+            first_twenty_one
+        );
+
+        let first_hundred = (1..=100)
+            .map(|i| format!("osmo1merchant{:0>3}", i))
+            .map(Addr::unchecked)
+            .collect::<Vec<Addr>>();
+
+        assert_eq!(
+            list_merchants(deps.as_ref(), None, Some(999)).unwrap(), // MAX_LIMIT = 100
+            first_hundred
+        );
+
+        let hundred_one_to_hundred_forty_two = (101..=142)
+            .map(|i| format!("osmo1merchant{:0>3}", i))
+            .map(Addr::unchecked)
+            .collect::<Vec<Addr>>();
+
+        assert_eq!(
+            list_merchants(
+                deps.as_ref(),
+                Some(first_hundred.last().unwrap().to_string()),
+                Some(42)
+            )
+            .unwrap(),
+            hundred_one_to_hundred_forty_two
         );
     }
 }
