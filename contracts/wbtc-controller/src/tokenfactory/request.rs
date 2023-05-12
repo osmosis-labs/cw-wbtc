@@ -34,7 +34,7 @@ impl std::fmt::Display for TxId {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct RequestData {
     pub requester: Addr,
     pub amount: Uint128,
