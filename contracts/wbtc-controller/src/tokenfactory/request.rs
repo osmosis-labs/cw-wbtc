@@ -1,11 +1,9 @@
-#[cfg(test)]
-use cosmwasm_std::Deps;
 use cosmwasm_std::{
-    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, DepsMut, StdResult,
-    TransactionInfo, Uint128,
+    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut,
+    Order, StdError, StdResult, TransactionInfo, Uint128,
 };
 
-use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex, PrefixBound};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
 
@@ -86,7 +84,7 @@ impl From<&RequestData> for Vec<Attribute> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Request<S> {
     pub data: RequestData,
     pub status: S,
@@ -108,7 +106,7 @@ where
 
 pub struct RequestManager<'a, S>
 where
-    S: Clone + Serialize + DeserializeOwned + PartialEq + Status,
+    S: Clone + Serialize + DeserializeOwned + PartialEq + Status + std::fmt::Debug,
 {
     requests: IndexedMap<'a, String, Request<S>, RequestIndexes<'a, S>>,
     nonce: Nonce<'a>,
@@ -116,7 +114,7 @@ where
 
 impl<'a, S> RequestManager<'a, S>
 where
-    S: Status + Serialize + DeserializeOwned + PartialEq + Clone,
+    S: Status + Serialize + DeserializeOwned + PartialEq + Clone + std::fmt::Debug,
 {
     pub fn new(
         requests_namespace: &'a str,
@@ -212,6 +210,24 @@ where
         request.data.tx_id = TxId::Confirmed(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
+
+        Ok(request)
+    }
+
+    pub fn get_request_by_nonce(&self, deps: Deps, nonce: &Uint128) -> StdResult<Request<S>> {
+        let (_request_hash, request) = self
+            .requests
+            .idx
+            .nonce
+            .prefix_range_raw(
+                deps.storage,
+                Some(PrefixBound::inclusive(nonce.to_be_bytes())),
+                Some(PrefixBound::inclusive(nonce.to_be_bytes())),
+                Order::Ascending,
+            )
+            .into_iter()
+            .next()
+            .ok_or(StdError::not_found(format!("Request with nonce: {nonce}")))??;
 
         Ok(request)
     }

@@ -282,6 +282,12 @@ mod tests {
         assert_eq!(request.status, MintRequestStatus::Pending);
         assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
 
+        let request_by_nonce = mint_requests()
+            .get_request_by_nonce(deps.as_ref(), &Uint128::new(0))
+            .unwrap();
+
+        assert_eq!(request, request_by_nonce);
+
         // nonce should be incremented
         assert_eq!(
             mint_requests().current_nonce(deps.as_ref()).unwrap(),
@@ -299,6 +305,16 @@ mod tests {
             .clone();
 
         assert_ne!(hash_on_nonce_0, hash_on_nonce_1);
+
+        let request = mint_requests()
+            .get_request(deps.as_ref(), &hash_on_nonce_1)
+            .unwrap();
+
+        let request_by_nonce = mint_requests()
+            .get_request_by_nonce(deps.as_ref(), &Uint128::new(1))
+            .unwrap();
+
+        assert_eq!(request, request_by_nonce);
 
         // nonce should be incremented
         assert_eq!(
