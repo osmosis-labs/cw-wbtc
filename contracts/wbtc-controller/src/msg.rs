@@ -83,11 +83,9 @@ pub enum QueryMsg {
     #[returns(GetTokenDenomResponse)]
     GetTokenDenom {},
 
-    /// IsMerchant
     #[returns(IsMerchantResponse)]
     IsMerchant { address: String },
 
-    /// IsCustodian
     #[returns(IsCustodianResponse)]
     IsCustodian { address: String },
 

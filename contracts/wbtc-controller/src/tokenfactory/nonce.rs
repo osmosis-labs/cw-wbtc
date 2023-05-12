@@ -16,7 +16,7 @@ impl<'a> Nonce<'a> {
     }
 
     /// Return current nonce and increment it by 1
-    pub fn next(&self, deps: DepsMut) -> StdResult<Uint128> {
+    pub fn get_then_increase(&self, deps: DepsMut) -> StdResult<Uint128> {
         // load nonce from state
         let nonce = self.nonce.may_load(deps.storage)?.unwrap_or_default();
 
@@ -30,7 +30,7 @@ impl<'a> Nonce<'a> {
 
     #[cfg(test)]
     /// Current nonce that will be used for the next request
-    pub fn current(&self, deps: Deps) -> StdResult<Uint128> {
+    pub fn get(&self, deps: Deps) -> StdResult<Uint128> {
         self.nonce.load(deps.storage)
     }
 }

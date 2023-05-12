@@ -148,7 +148,7 @@ where
         transaction: Option<TransactionInfo>,
         contract: ContractInfo,
     ) -> Result<(String, Request<S>), ContractError> {
-        let nonce = self.nonce.next(deps.branch())?;
+        let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
             data: RequestData {
                 requester,
@@ -241,7 +241,7 @@ where
     /// Current nonce that will be used for the next request
     /// Only used for testing
     pub fn current_nonce(&self, deps: Deps) -> StdResult<Uint128> {
-        self.nonce.current(deps)
+        self.nonce.get(deps)
     }
 }
 
