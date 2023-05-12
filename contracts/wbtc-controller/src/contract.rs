@@ -79,24 +79,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::TransferOwnership { new_owner_address } => {
-            owner::transfer_ownership(deps, &info, &new_owner_address)
-        }
-        ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
-        ExecuteMsg::SetCustodianDepositAddress {
-            merchant,
-            deposit_address,
-        } => deposit_address::set_custodian_deposit_address(
-            deps,
-            &info,
-            merchant.as_str(),
-            &deposit_address,
-        ),
-        ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
-        ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
-        ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
-            deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
-        }
+        // === mint ===
         ExecuteMsg::IssueMintRequest {
             amount,
             tx_id,
@@ -111,11 +94,37 @@ pub fn execute(
         ExecuteMsg::RejectMintRequest { request_hash } => {
             mint::reject_mint_request(deps, info, env.contract.address, request_hash)
         }
+
+        // === burn ===
         ExecuteMsg::Burn { amount } => burn::burn(deps, env, info, amount),
         ExecuteMsg::ConfirmBurnRequest {
             request_hash,
             tx_id,
         } => burn::confirm_burn_request(deps, env, info, request_hash, tx_id),
+
+        // === auth ===
+        ExecuteMsg::TransferOwnership { new_owner_address } => {
+            owner::transfer_ownership(deps, &info, &new_owner_address)
+        }
+        ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
+        ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
+        ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
+
+        // === deposit address ===
+        ExecuteMsg::SetCustodianDepositAddress {
+            merchant,
+            deposit_address,
+        } => deposit_address::set_custodian_deposit_address(
+            deps,
+            &info,
+            merchant.as_str(),
+            &deposit_address,
+        ),
+        ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
+            deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
+        }
+
+        // === pause ===
         ExecuteMsg::Pause {} => todo!(),
         ExecuteMsg::Unpause {} => todo!(),
     }
