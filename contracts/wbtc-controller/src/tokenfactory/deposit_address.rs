@@ -43,8 +43,13 @@ impl<'a> DepositAddressMananger<'a> {
         Ok(attrs)
     }
 
-    pub fn get_deposit_address(&self, deps: Deps, merchant: &Addr) -> Result<String, StdError> {
-        self.deposit_address.load(deps.storage, merchant.clone())
+    pub fn get_deposit_address(
+        &self,
+        deps: Deps,
+        merchant: &Addr,
+    ) -> Result<Option<String>, StdError> {
+        self.deposit_address
+            .may_load(deps.storage, merchant.clone())
     }
 }
 
@@ -72,7 +77,13 @@ pub fn set_custodian_deposit_address(
 }
 
 pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<String, StdError> {
-    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.get_deposit_address(deps, merchant)
+    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT
+        .get_deposit_address(deps, merchant)?
+        .ok_or_else(|| {
+            StdError::not_found(format!(
+                "No custodian deposit address found for `{merchant}`"
+            ))
+        })
 }
 
 /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
@@ -96,7 +107,13 @@ pub fn set_merchant_deposit_address(
 }
 
 pub fn get_merchant_deposit_address(deps: Deps, merchant: &Addr) -> Result<String, StdError> {
-    MERCHANT_DEPOSIT_ADDRESS.get_deposit_address(deps, merchant)
+    MERCHANT_DEPOSIT_ADDRESS
+        .get_deposit_address(deps, merchant)?
+        .ok_or_else(|| {
+            StdError::not_found(format!(
+                "No merchant deposit address found for `{merchant}`"
+            ))
+        })
 }
 
 #[cfg(test)]
@@ -125,11 +142,15 @@ mod tests {
         // no custodian deposit address set yet
         assert_eq!(
             get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap_err(),
-            StdError::not_found("alloc::string::String")
+            StdError::not_found(format!(
+                "No custodian deposit address found for `{merchant_1}`"
+            ))
         );
         assert_eq!(
             get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap_err(),
-            StdError::not_found("alloc::string::String")
+            StdError::not_found(format!(
+                "No custodian deposit address found for `{merchant_2}`"
+            ))
         );
 
         // non custodian cannot set custodian deposit address
@@ -191,11 +212,15 @@ mod tests {
         // no merchant deposit address set yet
         assert_eq!(
             get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap_err(),
-            StdError::not_found("alloc::string::String")
+            StdError::not_found(format!(
+                "No merchant deposit address found for `{merchant_1}`"
+            ))
         );
         assert_eq!(
             get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap_err(),
-            StdError::not_found("alloc::string::String")
+            StdError::not_found(format!(
+                "No merchant deposit address found for `{merchant_2}`"
+            ))
         );
 
         // non-merchant cannot set merchant deposit address

@@ -488,7 +488,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::mint::MintRequestStatus>").into()
+            StdError::not_found(format!("Request with hash `non-existing-request-hash`")).into()
         );
 
         // approve mint request with non existing request hash by merchant should fail
@@ -611,7 +611,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found("wbtc_controller::tokenfactory::request::Request<wbtc_controller::tokenfactory::mint::MintRequestStatus>").into()
+            StdError::not_found(format!("Request with hash `non-existing-request-hash`")).into()
         );
 
         // reject mint request with non existing request hash by merchant should fail

@@ -31,14 +31,17 @@ pub fn transfer_ownership(
 
 /// Check if the given address is the owner
 pub fn is_owner(deps: Deps, address: &Addr) -> Result<bool, StdError> {
-    let owner = OWNER.load(deps.storage)?;
-
-    Ok(owner == address)
+    match OWNER.may_load(deps.storage)? {
+        Some(owner) => Ok(address == owner),
+        None => Ok(false),
+    }
 }
 
 /// Get the owner address
 pub fn get_owner(deps: Deps) -> Result<Addr, StdError> {
-    OWNER.load(deps.storage)
+    OWNER
+        .may_load(deps.storage)?
+        .ok_or(StdError::not_found("Owner"))
 }
 
 #[cfg(test)]
@@ -55,11 +58,14 @@ mod tests {
         let new_owner_address = "osmo1newowner";
 
         // check before set will fail
-        let err = is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap_err();
-        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
+
+        assert_eq!(
+            is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),
+            false
+        );
 
         let err = get_owner(deps.as_ref()).unwrap_err();
-        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
+        assert_eq!(err, StdError::not_found("Owner"));
 
         // initialize owner
         assert_eq!(

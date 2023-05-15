@@ -192,7 +192,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
         status: S,
         precondition: impl Fn(&Request<S>) -> Result<(), ContractError>,
     ) -> Result<Request<S>, ContractError> {
-        let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+        let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
         // ensure precondition before updating the request
         precondition(&request)?;
@@ -221,7 +221,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
         request_hash: &str,
         tx_id: String,
     ) -> StdResult<Request<S>> {
-        let mut request = self.requests.load(deps.storage, request_hash.to_string())?;
+        let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
         request.data.tx_id = TxId::Confirmed(tx_id);
         self.requests
@@ -242,11 +242,13 @@ impl<'a, S: Status> RequestManager<'a, S> {
             .range(deps.storage, None, None, Order::Ascending)
             .into_iter()
             .next()
-            .ok_or(StdError::not_found(format!("Request with nonce: {nonce}")))?
+            .ok_or(StdError::not_found(format!("Request with nonce `{nonce}`")))?
     }
 
     pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request<S>> {
-        self.requests.load(deps.storage, request_hash.to_string())
+        self.requests
+            .may_load(deps.storage, request_hash.to_string())?
+            .ok_or_else(|| StdError::not_found(format!("Request with hash `{request_hash}`",)))
     }
 
     /// Get numbers of requests

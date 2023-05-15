@@ -21,13 +21,16 @@ pub fn set_custodian(
 }
 
 pub fn is_custodian(deps: Deps, address: &Addr) -> Result<bool, StdError> {
-    let custodian = CUSTODIAN.load(deps.storage)?;
-
-    Ok(custodian == address)
+    match CUSTODIAN.may_load(deps.storage)? {
+        Some(custodian) => Ok(custodian == address),
+        None => Ok(false),
+    }
 }
 
 pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
-    CUSTODIAN.load(deps.storage)
+    CUSTODIAN
+        .may_load(deps.storage)?
+        .ok_or_else(|| StdError::not_found("Custodian"))
 }
 
 #[cfg(test)]
@@ -50,11 +53,13 @@ mod tests {
         initialize_owner(deps.as_mut(), owner).unwrap();
 
         // check before set will fail
-        let err = is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap_err();
-        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
+        assert_eq!(
+            is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap(),
+            false
+        );
 
         let err = get_custodian(deps.as_ref()).unwrap_err();
-        assert_eq!(err, StdError::not_found("cosmwasm_std::addresses::Addr"));
+        assert_eq!(err, StdError::not_found("Custodian"));
 
         // set custodian by non owner should fail
         let err = set_custodian(
