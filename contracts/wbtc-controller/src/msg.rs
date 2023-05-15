@@ -68,10 +68,6 @@ pub enum ExecuteMsg {
     Unpause {},
 }
 
-/// Message type for `migrate` entry_point
-#[cw_serde]
-pub enum MigrateMsg {}
-
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {

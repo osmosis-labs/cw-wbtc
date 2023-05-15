@@ -15,16 +15,15 @@ use crate::msg::{
     GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
     GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
     IsMerchantResponse, IsOwnerResponse, ListBurnRequestsResponse, ListMerchantsResponse,
-    ListMintRequestsResponse, MigrateMsg, QueryMsg,
+    ListMintRequestsResponse, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
-use crate::tokenfactory::token::set_denom_metadata;
 use crate::tokenfactory::{deposit_address, token};
 
 // version info for migration info
-const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
-const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const CONTRACT_NAME: &str = "crates.io:wbtc-controller";
+pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const CREATE_DENOM_REPLY_ID: u64 = 1;
 
@@ -54,21 +53,6 @@ pub fn instantiate(
         .add_submessage(msg_create_denom)
         .add_attribute("method", "instantiate")
         .add_attribute("owner", info.sender))
-}
-
-/// Handling contract migration
-/// To make a contract migratable, you need
-/// - this entry_point implemented
-/// - only contract admin can migrate, so admin has to be set at contract initiation time
-/// Handling contract execution
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    match msg {
-        // Find matched incoming message variant and execute them with your custom logic.
-        //
-        // With `Response` type, it is possible to dispatch message to invoke external logic.
-        // See: https://github.com/CosmWasm/cosmwasm/blob/main/SEMANTICS.md#dispatching-messages
-    }
 }
 
 /// Handling contract execution
@@ -126,7 +110,7 @@ pub fn execute(
         }
 
         ExecuteMsg::SetDenomMetadata { metadata } => {
-            set_denom_metadata(deps.as_ref(), &info, metadata)
+            token::set_denom_metadata(deps.as_ref(), &info, metadata)
         }
 
         // === pause ===
