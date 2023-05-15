@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128};
+use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 use crate::tokenfactory::{
     burn::{BurnRequest, BurnRequestStatus, BurnRequestWithHash},
@@ -59,6 +60,9 @@ pub enum ExecuteMsg {
     ConfirmBurnRequest {
         request_hash: String,
         tx_id: String,
+    },
+    SetDenomMetadata {
+        metadata: Metadata,
     },
     Pause {},
     Unpause {},

@@ -19,6 +19,7 @@ use crate::msg::{
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
+use crate::tokenfactory::token::set_denom_metadata;
 use crate::tokenfactory::{deposit_address, token};
 
 // version info for migration info
@@ -122,6 +123,10 @@ pub fn execute(
         ),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
             deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
+        }
+
+        ExecuteMsg::SetDenomMetadata { metadata } => {
+            set_denom_metadata(deps.as_ref(), &info, metadata)
         }
 
         // === pause ===
