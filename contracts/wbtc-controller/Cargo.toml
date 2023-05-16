@@ -53,3 +53,4 @@ thiserror = "1.0.40"
 
 [dev-dependencies]
 cw-multi-test = "0.16.4"
+osmosis-test-tube = "15.1.0"
