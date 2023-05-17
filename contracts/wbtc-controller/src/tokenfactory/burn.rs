@@ -19,15 +19,19 @@ use super::{
     token,
 };
 
+/// Burn request status.
 #[cw_serde]
 pub enum BurnRequestStatus {
+    /// The burn request has been executed. This is the initial status.
     Executed,
+    /// The burn request has been confirmed by the custodian.
     Confirmed,
 }
 
 pub type BurnRequest = Request<BurnRequestStatus>;
 pub type BurnRequestWithHash = RequestWithHash<BurnRequestStatus>;
 
+/// `Display` implementation for `BurnRequestStatus`. This is used for serializing the status.
 impl Display for BurnRequestStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -36,6 +40,11 @@ impl Display for BurnRequestStatus {
         }
     }
 }
+
+/// `Status` implementation for `BurnRequestStatus`.
+/// Ensuring that:
+/// - `Executed` is the initial status.
+/// - `Executed` is the only updatable status.
 impl Status for BurnRequestStatus {
     fn initial() -> Self {
         Self::Executed
@@ -46,6 +55,7 @@ impl Status for BurnRequestStatus {
     }
 }
 
+/// Burn request manager.
 fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
     RequestManager::new(
         "burn_requests",
@@ -55,6 +65,11 @@ fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
     )
 }
 
+/// Burn the requested amount of tokens.
+/// Only the merchant can burn tokens.
+/// This will be executed immediately and created an `Executed` burn request.
+/// The custodian will later transfer the burn amount
+/// from custodian deposit address to merchant deposit address and confirm the burn request.
 pub fn burn(
     mut deps: DepsMut,
     env: Env,
@@ -108,6 +123,10 @@ pub fn burn(
     Ok(Response::new().add_message(burn_msg).add_attributes(attrs))
 }
 
+/// Confirm the burn request. Only the custodian can confirm the burn request.
+/// This will be called after the custodian has transferred the burn amount
+/// from custodian deposit address to merchant deposit address.
+/// And confirm that with `tx_id`.
 pub fn confirm_burn_request(
     mut deps: DepsMut,
     env: Env,
