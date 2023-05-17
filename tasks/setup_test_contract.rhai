@@ -1,6 +1,6 @@
 // Matching command line arguments
 // matches the arguments passed to the script and returns a map of the arguments
-let cli_args = match_args(["signer", "build_flags"]);
+let cli_args = match_args(["signer", "build_flags", "network"]);
 
 // expect build flags to be a comma separated list of flags
 // - no_rebuild: don't rebuild the contract
@@ -11,6 +11,7 @@ let base_args = #{
     signer_account: cli_args.signer,
     no_rebuild: build_flags.contains("no_rebuild"),
     no_wasm_opt: build_flags.contains("no_wasm_opt"),
+    network: cli_args.network,
 
     // contract name and label
     contract_name: "wbtc-controller",
@@ -98,5 +99,5 @@ let registered_merchant_addresses = wasm::query(merge(
 )).data.merchants;
 
 // sort the addresses to make sure they are in the same order
-merchant_addresses.sort(); 
+merchant_addresses.sort();
 @assert(registered_merchant_addresses == merchant_addresses);
