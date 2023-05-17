@@ -1,3 +1,4 @@
+/// `mint` module provides functionalities to manage mint requests and operations.
 use std::fmt::Display;
 
 use crate::{
@@ -18,17 +19,27 @@ use super::{
     token,
 };
 
+/// Mint request status.
 #[cw_serde]
 pub enum MintRequestStatus {
+    /// Initial status, waiting for approval.
     Pending,
+
+    /// Approved status, it can be assumed that the mint request is processed.
+    /// This status can no longer be updated.
     Approved,
+
+    /// Cancelled status. This status can no longer be updated.
     Cancelled,
+
+    /// Rejected status, This status can no longer be updated.
     Rejected,
 }
 
 pub type MintRequest = Request<MintRequestStatus>;
 pub type MintRequestWithHash = RequestWithHash<MintRequestStatus>;
 
+/// `Display` implementation for `MintRequestStatus`. This is mainly used for attribute serialization.
 impl Display for MintRequestStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -40,6 +51,10 @@ impl Display for MintRequestStatus {
     }
 }
 
+/// `Status` implementation for `MintRequestStatus`.
+/// Ensuring that:
+/// - `MintRequestStatus` is only initialized as `Pending` status.
+/// - `MintRequestStatus` is only updatable when it is in `Pending` status.
 impl Status for MintRequestStatus {
     fn initial() -> Self {
         Self::Pending
@@ -50,6 +65,7 @@ impl Status for MintRequestStatus {
     }
 }
 
+/// Mint request storage.
 fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
     RequestManager::new(
         "mint_requests",
@@ -59,6 +75,10 @@ fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
     )
 }
 
+/// Issue a mint request. This can only be done by the merchant.
+/// This will create a new mint request with `Pending` status.
+/// The mint request can be approved or rejected by the custodian.
+/// The mint request can be cancelled by the merchant.
 pub fn issue_mint_request(
     deps: DepsMut,
     info: MessageInfo,
@@ -86,6 +106,8 @@ pub fn issue_mint_request(
     Ok(Response::new().add_attributes(attrs))
 }
 
+/// Cancel a mint request. This can only be done by the merchant.
+/// This will update the mint request status to `Cancelled`.
 pub fn cancel_mint_request(
     deps: DepsMut,
     info: MessageInfo,
@@ -124,6 +146,8 @@ pub fn cancel_mint_request(
     Ok(Response::new().add_attributes(attrs))
 }
 
+/// Approve a mint request. This can only be done by the custodian after custodian has validated the request.
+/// This will update the mint request status to `Approved` and mint the requested amount of tokens to the merchant address.
 pub fn approve_mint_request(
     mut deps: DepsMut,
     info: MessageInfo,
@@ -178,6 +202,7 @@ pub fn approve_mint_request(
         .add_attributes(attrs))
 }
 
+/// Reject a mint request. This can only be done by the custodian after custodian has validated the request.
 pub fn reject_mint_request(
     deps: DepsMut,
     info: MessageInfo,
