@@ -1,3 +1,4 @@
+/// `token` module provides the functionality to manage the token denom and it's metadata.
 use cosmwasm_std::{attr, Deps, Env, MessageInfo, Response, StdResult, Storage};
 use cw_storage_plus::Item;
 use osmosis_std::types::{
@@ -10,16 +11,22 @@ use crate::{
     ContractError,
 };
 
+/// Token denom storage.
 const TOKEN_DENOM: Item<String> = Item::new("token_denom");
 
+/// Set the token denom.
+/// This can only be set once in the instantiation of the contract.
 pub fn set_token_denom(storage: &mut dyn Storage, token_denom: &String) -> StdResult<()> {
     TOKEN_DENOM.save(storage, token_denom)
 }
 
+/// Get the token denom.
 pub fn get_token_denom(storage: &dyn Storage) -> StdResult<String> {
     TOKEN_DENOM.load(storage)
 }
 
+/// Set denom metadata.
+/// Only the owner can set the denom metadata.
 pub fn set_denom_metadata(
     deps: Deps,
     env: &Env,
