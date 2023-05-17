@@ -110,7 +110,7 @@ pub fn execute(
         }
 
         ExecuteMsg::SetDenomMetadata { metadata } => {
-            token::set_denom_metadata(deps.as_ref(), &info, metadata)
+            token::set_denom_metadata(deps.as_ref(), &env, &info, metadata)
         }
     }
 }

@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 
 use cosmwasm_std::{Coin, Uint128};
-use osmosis_std::types::cosmos::bank::v1beta1::QuerySupplyOfRequest;
+
 use osmosis_test_tube::{
     cosmrs::proto::{
-        cosmos::bank::v1beta1::{QueryBalanceRequest, QueryBalanceResponse, QuerySupplyOfResponse},
+        cosmos::bank::v1beta1::{
+            DenomUnit, Metadata, QueryBalanceRequest, QueryBalanceResponse,
+            QueryDenomMetadataRequest, QueryDenomMetadataResponse, QuerySupplyOfRequest,
+            QuerySupplyOfResponse,
+        },
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
     },
     Account, Bank, Module, OsmosisTestApp, Runner, RunnerError, RunnerExecuteResult, RunnerResult,
@@ -85,7 +89,145 @@ impl<'a> WBTC<'a> {
 }
 
 #[test]
-fn test_integration() {
+fn test_set_denom_metadata() {
+    let app = OsmosisTestApp::default();
+
+    let accs = app
+        .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 2)
+        .unwrap();
+    let owner = &accs[0];
+    let other = &accs[1];
+
+    let wbtc = WBTC::deploy(
+        &app,
+        &InstantiateMsg {
+            owner: owner.address(),
+            subdenom: "wbtc".to_string(),
+        },
+        &[Coin::new(10000000, "uosmo")],
+        &owner,
+    )
+    .unwrap();
+
+    // get token denom
+    let GetTokenDenomResponse { denom } = wbtc
+        .query::<GetTokenDenomResponse>(&QueryMsg::GetTokenDenom {})
+        .unwrap();
+
+    assert_eq!(
+        app.query::<QueryDenomMetadataRequest, QueryDenomMetadataResponse>(
+            "/cosmos.bank.v1beta1.Query/DenomMetadata",
+            &QueryDenomMetadataRequest {
+                denom: denom.clone()
+            }
+        )
+        .unwrap()
+        .metadata
+        .unwrap(),
+        Metadata {
+            description: "".to_string(),
+            denom_units: vec![vec![
+                // must start with `denom` with exponent 0
+                DenomUnit {
+                    denom: denom.clone(),
+                    exponent: 0,
+                    aliases: vec![],
+                }
+            ],]
+            .concat(),
+            base: denom.clone(),
+            display: "".to_string(),
+            name: "".to_string(),
+            symbol: "".to_string(),
+        }
+    );
+
+    let updated_metadata = osmosis_std::types::cosmos::bank::v1beta1::Metadata {
+        description: "Tokenfactory-based token backed 1:1 with Bitcoin. Completely transparent. 100% verifiable. Community led."
+            .to_string(),
+        denom_units: vec![vec![
+            // must start with `denom` with exponent 0
+            osmosis_std::types::cosmos::bank::v1beta1::DenomUnit {
+                denom: denom.clone(),
+                exponent: 0,
+                aliases: vec!["uwbtc".to_string()],
+            },
+            osmosis_std::types::cosmos::bank::v1beta1::DenomUnit {
+                denom: "wbtc".to_string(),
+                exponent: 16,
+                aliases: vec![],
+            }
+        ]]
+        .concat(),
+        base: denom.clone(),
+        display: "wbtc".to_string(),
+        name: "Wrapped Bitcoin".to_string(),
+        symbol: "WBTC".to_string(),
+    };
+
+    // set denom metadata by non owner should fail
+    let err = wbtc
+        .execute(
+            &ExecuteMsg::SetDenomMetadata {
+                metadata: updated_metadata.clone(),
+            },
+            &[],
+            &other,
+        )
+        .unwrap_err();
+
+    assert_eq!(
+        err,
+        RunnerError::ExecuteError {
+            msg: "failed to execute message; message index: 0: Unauthorized: execute wasm contract failed".to_string()
+        }
+    );
+
+    // set denom metadata by owner should succeed
+    wbtc.execute(
+        &ExecuteMsg::SetDenomMetadata {
+            metadata: updated_metadata.clone(),
+        },
+        &[],
+        &owner,
+    )
+    .unwrap();
+
+    assert_eq!(
+        app.query::<QueryDenomMetadataRequest, QueryDenomMetadataResponse>(
+            "/cosmos.bank.v1beta1.Query/DenomMetadata",
+            &QueryDenomMetadataRequest {
+                denom: denom.clone()
+            }
+        )
+        .unwrap()
+        .metadata
+        .unwrap(),
+        Metadata {
+            description: updated_metadata.description,
+            denom_units: vec![
+                // must start with `denom` with exponent 0
+                DenomUnit {
+                    denom: denom.clone(),
+                    exponent: 0,
+                    aliases: vec!["uwbtc".to_string()],
+                },
+                DenomUnit {
+                    denom: "wbtc".to_string(),
+                    exponent: 16,
+                    aliases: vec![],
+                }
+            ],
+            base: updated_metadata.base,
+            display: updated_metadata.display,
+            name: updated_metadata.name,
+            symbol: updated_metadata.symbol,
+        }
+    );
+}
+
+#[test]
+fn test_mint_and_burn() {
     let app = OsmosisTestApp::default();
     let bank = Bank::new(&app);
 
@@ -94,7 +236,7 @@ fn test_integration() {
         .unwrap();
     let owner = &accs[0];
     let custodian = &accs[1];
-    let merchants = &accs[2..];
+    let merchant = &accs[2];
 
     let wbtc = WBTC::deploy(
         &app,
@@ -137,38 +279,37 @@ fn test_integration() {
     .unwrap();
 
     // setup merchants
-    for merchant in merchants {
-        // add merchant
-        wbtc.execute(
-            &ExecuteMsg::AddMerchant {
-                address: merchant.address(),
-            },
-            &[],
-            &owner,
-        )
-        .unwrap();
 
-        // set custodian deposit address
-        wbtc.execute(
-            &ExecuteMsg::SetCustodianDepositAddress {
-                merchant: merchant.address(),
-                deposit_address: format!("bc1{}", merchant.address()),
-            },
-            &[],
-            &custodian,
-        )
-        .unwrap();
+    // add merchant
+    wbtc.execute(
+        &ExecuteMsg::AddMerchant {
+            address: merchant.address(),
+        },
+        &[],
+        &owner,
+    )
+    .unwrap();
 
-        // set merchant deposit address
-        wbtc.execute(
-            &ExecuteMsg::SetMerchantDepositAddress {
-                deposit_address: format!("bc1{}", merchant.address()),
-            },
-            &[],
-            &merchant,
-        )
-        .unwrap();
-    }
+    // set custodian deposit address
+    wbtc.execute(
+        &ExecuteMsg::SetCustodianDepositAddress {
+            merchant: merchant.address(),
+            deposit_address: format!("bc1{}", merchant.address()),
+        },
+        &[],
+        &custodian,
+    )
+    .unwrap();
+
+    // set merchant deposit address
+    wbtc.execute(
+        &ExecuteMsg::SetMerchantDepositAddress {
+            deposit_address: format!("bc1{}", merchant.address()),
+        },
+        &[],
+        &merchant,
+    )
+    .unwrap();
 
     // issue mint request
     let amount = Uint128::from(100000000u128);
@@ -176,10 +317,10 @@ fn test_integration() {
         &ExecuteMsg::IssueMintRequest {
             amount,
             tx_id: "tx_id_1".to_string(),
-            deposit_address: format!("bc1{}", merchants[0].address()),
+            deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &merchants[0],
+        &merchant,
     )
     .unwrap();
 
@@ -235,7 +376,7 @@ fn test_integration() {
     // check balance
     let QueryBalanceResponse { balance } = bank
         .query_balance(&QueryBalanceRequest {
-            address: merchants[0].address(),
+            address: merchant.address(),
             denom: denom.clone(),
         })
         .unwrap();
@@ -261,7 +402,7 @@ fn test_integration() {
     wbtc.execute(
         &ExecuteMsg::Burn { amount },
         &[Coin::new(amount.u128(), denom.clone())],
-        &merchants[0],
+        &merchant,
     )
     .unwrap();
 
@@ -313,7 +454,7 @@ fn test_integration() {
     // check balance
     let QueryBalanceResponse { balance } = bank
         .query_balance(&QueryBalanceRequest {
-            address: merchants[0].address(),
+            address: merchant.address(),
             denom: denom.clone(),
         })
         .unwrap();

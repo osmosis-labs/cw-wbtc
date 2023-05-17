@@ -1,4 +1,4 @@
-use cosmwasm_std::{attr, Deps, MessageInfo, Response, StdResult, Storage};
+use cosmwasm_std::{attr, Deps, Env, MessageInfo, Response, StdResult, Storage};
 use cw_storage_plus::Item;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::Metadata, osmosis::tokenfactory::v1beta1::MsgSetDenomMetadata,
@@ -22,6 +22,7 @@ pub fn get_token_denom(storage: &dyn Storage) -> StdResult<String> {
 
 pub fn set_denom_metadata(
     deps: Deps,
+    env: &Env,
     info: &MessageInfo,
     metadata: Metadata,
 ) -> Result<Response, ContractError> {
@@ -39,7 +40,7 @@ pub fn set_denom_metadata(
     );
 
     let msg_set_denom_metadata = MsgSetDenomMetadata {
-        sender: info.sender.to_string(),
+        sender: env.contract.address.to_string(),
         metadata: Some(metadata),
     };
     Ok(Response::new()
@@ -51,7 +52,7 @@ pub fn set_denom_metadata(
 mod tests {
     use super::*;
     use cosmwasm_std::{
-        testing::{mock_dependencies, mock_info},
+        testing::{mock_dependencies, mock_env, mock_info},
         SubMsg,
     };
     use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
@@ -83,25 +84,40 @@ mod tests {
         };
 
         assert_eq!(
-            set_denom_metadata(deps.as_ref(), &mock_info(custodian, &[]), metadata.clone())
-                .unwrap_err(),
+            set_denom_metadata(
+                deps.as_ref(),
+                &mock_env(),
+                &mock_info(custodian, &[]),
+                metadata.clone()
+            )
+            .unwrap_err(),
             ContractError::Unauthorized {}
         );
 
         assert_eq!(
-            set_denom_metadata(deps.as_ref(), &mock_info(merchant, &[]), metadata.clone())
-                .unwrap_err(),
+            set_denom_metadata(
+                deps.as_ref(),
+                &mock_env(),
+                &mock_info(merchant, &[]),
+                metadata.clone()
+            )
+            .unwrap_err(),
             ContractError::Unauthorized {}
         );
 
-        let msgs = set_denom_metadata(deps.as_ref(), &mock_info(owner, &[]), metadata.clone())
-            .unwrap()
-            .messages;
+        let msgs = set_denom_metadata(
+            deps.as_ref(),
+            &mock_env(),
+            &mock_info(owner, &[]),
+            metadata.clone(),
+        )
+        .unwrap()
+        .messages;
 
         assert_eq!(
             msgs,
             vec![SubMsg::new(MsgSetDenomMetadata {
-                sender: owner.to_string(),
+                sender: mock_env().contract.address.to_string(),
                 metadata: Some(metadata)
             })]
         );
