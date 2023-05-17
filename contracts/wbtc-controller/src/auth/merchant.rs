@@ -1,3 +1,4 @@
+/// `merchant` module provides functionality to manage merchants
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Order, Response, StdError, StdResult};
 use cw_storage_plus::{Bound, Map};
 
@@ -13,6 +14,8 @@ use super::{allow_only, Role};
 /// This makes it efficient to check if a merchant exists while not storing any data as value
 const MERCHANTS: Map<Addr, ()> = Map::new("merchants");
 
+/// Add an address as member of merchant.
+/// Duplicate addresses will not change the state since it's stored as a map's key.
 pub fn add_merchant(
     deps: DepsMut,
     info: &MessageInfo,
@@ -26,6 +29,7 @@ pub fn add_merchant(
     Ok(Response::new().add_attributes(attrs))
 }
 
+/// Remove address from member of merchant.
 pub fn remove_merchant(
     deps: DepsMut,
     info: &MessageInfo,
@@ -39,12 +43,14 @@ pub fn remove_merchant(
     Ok(Response::new().add_attributes(attrs))
 }
 
+/// Check if the given address is a merchant.
 pub fn is_merchant(deps: Deps, address: &Addr) -> Result<bool, StdError> {
     Ok(MERCHANTS
         .may_load(deps.storage, address.to_owned())?
         .is_some())
 }
 
+/// List merchants with pagination.
 pub fn list_merchants(
     deps: Deps,
     start_after: Option<String>,

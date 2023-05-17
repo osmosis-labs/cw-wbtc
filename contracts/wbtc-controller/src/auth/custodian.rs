@@ -1,3 +1,4 @@
+/// `custodian` module provides functionality to manage the custodian address.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
@@ -5,8 +6,10 @@ use crate::{helpers::action_attrs, ContractError};
 
 use super::{allow_only, Role};
 
+/// Custodian address storage.
 const CUSTODIAN: Item<Addr> = Item::new("custodian");
 
+/// Set the custodian address.
 pub fn set_custodian(
     deps: DepsMut,
     info: &MessageInfo,
@@ -20,6 +23,7 @@ pub fn set_custodian(
     Ok(Response::new().add_attributes(attrs))
 }
 
+/// Check if the given address is the custodian.
 pub fn is_custodian(deps: Deps, address: &Addr) -> Result<bool, StdError> {
     match CUSTODIAN.may_load(deps.storage)? {
         Some(custodian) => Ok(custodian == address),
@@ -27,6 +31,7 @@ pub fn is_custodian(deps: Deps, address: &Addr) -> Result<bool, StdError> {
     }
 }
 
+/// Get the custodian address.
 pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
     CUSTODIAN
         .may_load(deps.storage)?
