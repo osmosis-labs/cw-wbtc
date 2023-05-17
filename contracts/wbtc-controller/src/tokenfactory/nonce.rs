@@ -1,3 +1,4 @@
+/// `nonce` is a helper module to manage nonce for each request
 use cosmwasm_std::{Deps, DepsMut, StdResult, Uint128};
 
 use cw_storage_plus::Item;
