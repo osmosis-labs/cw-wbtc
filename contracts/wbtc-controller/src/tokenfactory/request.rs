@@ -1,3 +1,4 @@
+/// `request` module provides a generic request manager for any type of request.
 use std::fmt::Display;
 
 use cosmwasm_schema::cw_serde;
@@ -17,19 +18,30 @@ use crate::{
 
 use super::nonce::Nonce;
 
+/// Status of a request
 pub trait Status:
     Clone + Serialize + DeserializeOwned + PartialEq + std::fmt::Debug + Display
 {
+    /// Once request is issued, status must start with result of this function
     fn initial() -> Self;
+
+    /// Check if the status is allowed to be updated to another status
     fn is_updatable(&self) -> bool;
 }
 
+/// `TxId` is a wrapper around transaction id.
+/// This is used to differentiate between pending and confirmed transactions.
 #[cw_serde]
 pub enum TxId {
+    /// Pending transaction, not yet confirmed
     Pending,
+
+    /// Confirmed transaction
     Confirmed(String),
 }
 
+/// `Display` implementation for `TxId`
+/// mainly used for attribute contruction purpose
 impl std::fmt::Display for TxId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -39,19 +51,36 @@ impl std::fmt::Display for TxId {
     }
 }
 
+/// `RequestData` contains common data for any type of request.
 #[cw_serde]
 pub struct RequestData {
+    /// Address of the requester
     pub requester: Addr,
+
+    /// Amount of tokens requested to perform requested operation
     pub amount: Uint128,
+
+    /// BTC transaction id
     pub tx_id: TxId,
+
+    /// Deposit address to send BTC to
     pub deposit_address: String,
+
+    /// Block info at the time of the request issuance
     pub block: BlockInfo,
+
+    /// Transaction info at the time of the request issuance
     pub transaction: Option<TransactionInfo>,
+
+    /// Contract info of the contract that issued the request
     pub contract: ContractInfo,
+
+    /// Nonce of the request
     pub nonce: Uint128,
 }
 
 impl RequestData {
+    /// Keccek256 hash of the request data
     pub fn hash(&self) -> StdResult<Binary> {
         let mut hasher = Keccak256::new();
         hasher.update(to_binary(&self)?.to_vec());
@@ -59,6 +88,7 @@ impl RequestData {
     }
 }
 
+/// Convert `RequestData` to a list of attributes
 impl From<&RequestData> for Vec<Attribute> {
     fn from(data: &RequestData) -> Self {
         let RequestData {
@@ -91,23 +121,30 @@ impl From<&RequestData> for Vec<Attribute> {
     }
 }
 
+/// `Request` contains common data for any type of request and its status.
 #[cw_serde]
 pub struct Request<S> {
     pub data: RequestData,
     pub status: S,
 }
 
+/// `RequestWithHash` is a wrapper around `Request` that contains request hash.
 #[cw_serde]
 pub struct RequestWithHash<S> {
     pub request_hash: String,
     pub request: Request<S>,
 }
 
+/// `RequestIndexes` contains indexes for `Request` storage.
 pub struct RequestIndexes<'a, S> {
+    /// `nonce` index is for listing without status filtering
     pub nonce: MultiIndex<'a, Vec<u8>, Request<S>, String>,
+
+    /// `status_and_nonce` index is for listing with status filtering
     pub status_and_nonce: MultiIndex<'a, (String, Vec<u8>), Request<S>, String>,
 }
 
+/// Boilerplate code for setting `RequestIndexes` as compatible `IndexList` for `IndexedMap`
 impl<'a, S: Status> IndexList<Request<S>> for RequestIndexes<'a, S> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Request<S>>> + '_> {
         let v: Vec<&dyn Index<Request<S>>> = vec![&self.nonce, &self.status_and_nonce];
@@ -115,8 +152,12 @@ impl<'a, S: Status> IndexList<Request<S>> for RequestIndexes<'a, S> {
     }
 }
 
+/// `RequestManager` is a generic request manager for any type of request.
 pub struct RequestManager<'a, S: Status> {
+    /// Request storage
     requests: IndexedMap<'a, String, Request<S>, RequestIndexes<'a, S>>,
+
+    /// Nonce storage
     nonce: Nonce<'a>,
 }
 
@@ -230,6 +271,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
         Ok(request)
     }
 
+    /// Get requests by nonce
     pub fn get_request_by_nonce(
         &self,
         deps: Deps,
@@ -245,6 +287,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
             .ok_or(StdError::not_found(format!("Request with nonce `{nonce}`")))?
     }
 
+    /// Get request by hash
     pub fn get_request(&self, deps: Deps, request_hash: &str) -> StdResult<Request<S>> {
         self.requests
             .may_load(deps.storage, request_hash.to_string())?
@@ -257,6 +300,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
         self.nonce.get(deps)
     }
 
+    /// List requests with pagination and status filter
     pub fn list_requests(
         &self,
         deps: Deps,
@@ -268,6 +312,9 @@ impl<'a, S: Status> RequestManager<'a, S> {
         let start_after_bound = start_after_nonce.map(|nonce| (nonce.to_be_bytes().to_vec()));
 
         match status {
+            // If status is specified, use `status_and_nonce` index
+            // since the index is ordered by (status, nonce) we can use status as prefix
+            // to filter the requests with specific status efficiently
             Some(status) => self
                 .requests
                 .idx
@@ -291,6 +338,9 @@ impl<'a, S: Status> RequestManager<'a, S> {
                 })
                 .take(limit)
                 .collect(),
+
+            // If status is not specified, use `nonce` index
+            // since order of requests is determined by nonce
             None => self
                 .requests
                 .idx
