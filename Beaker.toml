@@ -2,4 +2,4 @@ name = "cw-wbtc"
 
 [console]
 account_namespace = false
-contract_namespace = false
+contract_namespace = true
