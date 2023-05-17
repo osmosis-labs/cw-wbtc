@@ -1,7 +1,7 @@
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
-use crate::{helpers::method_attrs, ContractError};
+use crate::{helpers::action_attrs, ContractError};
 
 use super::{allow_only, Role};
 
@@ -16,7 +16,7 @@ pub fn set_custodian(
 
     CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let attrs = method_attrs("set_custodian", vec![attr("address", address)]);
+    let attrs = action_attrs("set_custodian", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -76,7 +76,7 @@ mod tests {
                 .unwrap()
                 .attributes,
             vec![
-                attr("method", "set_custodian"),
+                attr("action", "set_custodian"),
                 attr("address", custodian_address.clone())
             ]
         );

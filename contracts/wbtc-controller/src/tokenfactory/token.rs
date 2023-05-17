@@ -6,7 +6,7 @@ use osmosis_std::types::{
 
 use crate::{
     auth::{allow_only, Role},
-    helpers::method_attrs,
+    helpers::action_attrs,
     ContractError,
 };
 
@@ -28,7 +28,7 @@ pub fn set_denom_metadata(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Owner], &info.sender, deps)?;
 
-    let attrs = method_attrs(
+    let attrs = action_attrs(
         "set_denom_metadata",
         vec![
             attr("description", &metadata.description),

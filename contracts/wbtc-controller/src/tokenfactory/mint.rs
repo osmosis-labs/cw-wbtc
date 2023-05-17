@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     auth::{allow_only, Role},
-    helpers::method_attrs,
+    helpers::action_attrs,
     tokenfactory::request::RequestData,
     ContractError,
 };
@@ -80,7 +80,7 @@ pub fn issue_mint_request(
         env.contract,
     )?;
 
-    let mut attrs = method_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -118,7 +118,7 @@ pub fn cancel_mint_request(
     )?;
 
     // construct event attributes
-    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -151,7 +151,7 @@ pub fn approve_mint_request(
         .data;
 
     // construct event attributes
-    let mut attrs = method_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_data));
+    let mut attrs = action_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     let RequestData {
@@ -203,7 +203,7 @@ pub fn reject_mint_request(
         )?
         .data;
 
-    let mut attrs = method_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
+    let mut attrs = action_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -298,7 +298,7 @@ mod tests {
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
             Response::new()
-                .add_attribute("method", "issue_mint_request")
+                .add_attribute("action", "issue_mint_request")
                 .add_attribute("requester", merchant)
                 .add_attribute("amount", "100000000")
                 .add_attribute(

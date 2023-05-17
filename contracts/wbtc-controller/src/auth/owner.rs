@@ -1,7 +1,7 @@
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
-use crate::{helpers::method_attrs, ContractError};
+use crate::{helpers::action_attrs, ContractError};
 
 use super::{allow_only, Role};
 
@@ -11,7 +11,7 @@ const OWNER: Item<Addr> = Item::new("owner");
 pub fn initialize_owner(deps: DepsMut, address: &str) -> Result<Response, ContractError> {
     OWNER.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let attrs = method_attrs("initialize_owner", vec![attr("address", address)]);
+    let attrs = action_attrs("initialize_owner", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -25,7 +25,7 @@ pub fn transfer_ownership(
 
     OWNER.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
-    let attrs = method_attrs("transfer_ownership", vec![attr("address", address)]);
+    let attrs = action_attrs("transfer_ownership", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -73,7 +73,7 @@ mod tests {
                 .unwrap()
                 .attributes,
             vec![
-                attr("method", "initialize_owner"),
+                attr("action", "initialize_owner"),
                 attr("address", owner_address)
             ]
         );
@@ -118,7 +118,7 @@ mod tests {
             .unwrap()
             .attributes,
             vec![
-                attr("method", "transfer_ownership"),
+                attr("action", "transfer_ownership"),
                 attr("address", new_owner_address)
             ]
         );

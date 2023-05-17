@@ -9,7 +9,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
     auth::{allow_only, Role},
-    helpers::method_attrs,
+    helpers::action_attrs,
     ContractError,
 };
 
@@ -80,7 +80,7 @@ pub fn burn(
     )?;
 
     // construct attributes
-    let mut attrs = method_attrs("burn", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs("burn", <Vec<Attribute>>::from(&request.data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     // construct burn message
@@ -136,7 +136,7 @@ pub fn confirm_burn_request(
 
     burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
 
-    let mut attrs = method_attrs(
+    let mut attrs = action_attrs(
         "confirm_burn_request",
         <Vec<Attribute>>::from(&request.data),
     );

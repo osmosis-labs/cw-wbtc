@@ -3,7 +3,7 @@ use cw_storage_plus::Map;
 
 use crate::{
     auth::{allow_only, Role},
-    helpers::method_attrs,
+    helpers::action_attrs,
     ContractError,
 };
 
@@ -65,7 +65,7 @@ pub fn set_custodian_deposit_address(
     merchant: &str,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
-    Ok(Response::new().add_attributes(method_attrs(
+    Ok(Response::new().add_attributes(action_attrs(
         "set_custodian_deposit_address",
         CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.set_deposit_address(
             deps,
@@ -95,7 +95,7 @@ pub fn set_merchant_deposit_address(
     info: &MessageInfo,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
-    Ok(Response::new().add_attributes(method_attrs(
+    Ok(Response::new().add_attributes(action_attrs(
         "set_merchant_deposit_address",
         MERCHANT_DEPOSIT_ADDRESS.set_deposit_address(
             deps,

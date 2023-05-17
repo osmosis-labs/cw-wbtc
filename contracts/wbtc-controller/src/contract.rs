@@ -51,7 +51,7 @@ pub fn instantiate(
 
     Ok(Response::new()
         .add_submessage(msg_create_denom)
-        .add_attribute("method", "instantiate")
+        .add_attribute("action", "instantiate")
         .add_attribute("owner", info.sender))
 }
 

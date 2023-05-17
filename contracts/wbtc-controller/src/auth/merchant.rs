@@ -3,7 +3,7 @@ use cw_storage_plus::{Bound, Map};
 
 use crate::{
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
-    helpers::method_attrs,
+    helpers::action_attrs,
     ContractError,
 };
 
@@ -22,7 +22,7 @@ pub fn add_merchant(
 
     MERCHANTS.save(deps.storage, deps.api.addr_validate(address)?, &())?;
 
-    let attrs = method_attrs("add_merchant", vec![attr("address", address)]);
+    let attrs = action_attrs("add_merchant", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -35,7 +35,7 @@ pub fn remove_merchant(
 
     MERCHANTS.remove(deps.storage, deps.api.addr_validate(address)?);
 
-    let attrs = method_attrs("remove_merchant", vec![attr("address", address)]);
+    let attrs = action_attrs("remove_merchant", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -110,7 +110,7 @@ mod tests {
                 .unwrap()
                 .attributes,
             vec![
-                attr("method", "add_merchant"),
+                attr("action", "add_merchant"),
                 attr("address", merchant_address_1)
             ]
         );
@@ -130,7 +130,7 @@ mod tests {
                 .unwrap()
                 .attributes,
             vec![
-                attr("method", "add_merchant"),
+                attr("action", "add_merchant"),
                 attr("address", merchant_address_2)
             ]
         );
@@ -159,7 +159,7 @@ mod tests {
                 .unwrap()
                 .attributes,
             vec![
-                attr("method", "remove_merchant"),
+                attr("action", "remove_merchant"),
                 attr("address", merchant_address_1)
             ]
         );
