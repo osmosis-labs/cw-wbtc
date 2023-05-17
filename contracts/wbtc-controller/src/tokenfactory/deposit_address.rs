@@ -1,3 +1,4 @@
+/// `deposit_address` module provides a way to manage deposit addresses for merchants and custodian.
 use cosmwasm_std::{attr, Addr, Attribute, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Map;
 
@@ -7,8 +8,12 @@ use crate::{
     ContractError,
 };
 
+/// `DepositAddressMananger` is a helper struct to manage deposit addresses.
 pub struct DepositAddressMananger<'a> {
+    /// deposit address storage.
     deposit_address: Map<'a, Addr, String>,
+
+    /// role allowed to set the deposit address.
     setter_role: Role,
 }
 
