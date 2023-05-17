@@ -15,7 +15,7 @@ let base_args = #{
 
     // contract name and label
     contract_name: "wbtc-controller",
-    label: "wbtc-controller",
+    label: "default",
 };
 
 let owner_address = "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"; // test1
