@@ -112,10 +112,6 @@ pub fn execute(
         ExecuteMsg::SetDenomMetadata { metadata } => {
             token::set_denom_metadata(deps.as_ref(), &info, metadata)
         }
-
-        // === pause ===
-        ExecuteMsg::Pause {} => todo!(),
-        ExecuteMsg::Unpause {} => todo!(),
     }
 }
 

@@ -64,8 +64,6 @@ pub enum ExecuteMsg {
     SetDenomMetadata {
         metadata: Metadata,
     },
-    Pause {},
-    Unpause {},
 }
 
 #[cw_serde]
