@@ -1,3 +1,4 @@
+/// `burn` module provides functionalities to manage burn requests and operations.
 use std::fmt::Display;
 
 use cosmwasm_schema::cw_serde;
