@@ -14,8 +14,8 @@ use crate::msg::{
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
     GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
     GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
-    IsMerchantResponse, IsOwnerResponse, ListBurnRequestsResponse, ListMerchantsResponse,
-    ListMintRequestsResponse, QueryMsg,
+    IsMerchantResponse, IsOwnerResponse, IsPausedResponse, ListBurnRequestsResponse,
+    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -112,6 +112,10 @@ pub fn execute(
         ExecuteMsg::SetDenomMetadata { metadata } => {
             token::set_denom_metadata(deps.as_ref(), &env, &info, metadata)
         }
+
+        // === pausing ===
+        ExecuteMsg::Pause {} => token::pause(deps, &info),
+        ExecuteMsg::Unpause {} => token::unpause(deps, &info),
     }
 }
 
@@ -209,6 +213,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 &deps.api.addr_validate(&merchant)?,
             )?)
         }
+
+        // == pausing ==
+        QueryMsg::IsPaused {} => to_binary(&IsPausedResponse {
+            is_paused: token::is_paused(deps)?,
+        }),
     }
 }
 
