@@ -3,3 +3,9 @@ name = "cw-wbtc"
 [console]
 account_namespace = false
 contract_namespace = true
+
+[networks.edgenet]
+chain_id = 'osmo-test-5'
+network_variant = 'Shared'
+grpc_endpoint = 'https://grpc.edgenet.osmosis.zone:30090'
+rpc_endpoint = 'https://rpc.edgenet.osmosis.zone'
