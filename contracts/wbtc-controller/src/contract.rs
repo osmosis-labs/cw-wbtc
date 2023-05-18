@@ -1,11 +1,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult,
-    SubMsg,
+    ensure, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg,
 };
 use cw2::set_contract_version;
-use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCreateDenomResponse};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
+    MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
+};
 
 use crate::auth::{custodian, merchant, owner};
 use crate::error::ContractError;
@@ -15,7 +17,7 @@ use crate::msg::{
     GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
     GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
     IsMerchantResponse, IsOwnerResponse, IsPausedResponse, ListBurnRequestsResponse,
-    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg,
+    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -223,15 +225,45 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 /// Handling submessage reply.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         CREATE_DENOM_REPLY_ID => {
             // register created token denom
             let MsgCreateDenomResponse { new_token_denom } = msg.result.try_into()?;
             token::set_token_denom(deps.storage, &new_token_denom)?;
 
-            Ok(Response::new().add_attribute("new_token_denom", new_token_denom))
+            // set beforesend listener to this contract
+            // this will trigger sudo endpoint before any bank send
+            // which makes token transfer pause possible
+            let msg_set_beforesend_hook: CosmosMsg = MsgSetBeforeSendHook {
+                sender: env.contract.address.to_string(),
+                denom: new_token_denom.clone(),
+                cosmwasm_address: env.contract.address.to_string(),
+            }
+            .into();
+
+            Ok(Response::new()
+                .add_attribute("new_token_denom", new_token_denom)
+                .add_message(msg_set_beforesend_hook))
         }
         _ => Err(StdError::not_found(format!("No reply handler found for: {:?}", msg)).into()),
+    }
+}
+
+/// Handling contract sudo call.
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, ContractError> {
+    match msg {
+        // Hook for bank send (aka. token transfer), this is called before the token is sent if this contract is registered with MsgSetBeforeSendHook
+        SudoMsg::BlockBeforeSend { .. } => {
+            // ensure that token transfer is not paused
+            let token_transfer_is_not_paused = !token::is_paused(deps.as_ref())?;
+            ensure!(
+                token_transfer_is_not_paused,
+                ContractError::TokenTransferPaused {}
+            );
+
+            Ok(Response::new().add_attribute("hook", "block_before_send"))
+        }
     }
 }

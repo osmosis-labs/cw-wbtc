@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+use std::{assert_eq, path::PathBuf};
 
 use cosmwasm_std::{Coin, Uint128};
 
 use osmosis_test_tube::{
     cosmrs::proto::{
         cosmos::bank::v1beta1::{
-            DenomUnit, Metadata, QueryBalanceRequest, QueryBalanceResponse,
+            DenomUnit, Metadata, MsgSend, QueryBalanceRequest, QueryBalanceResponse,
             QueryDenomMetadataRequest, QueryDenomMetadataResponse, QuerySupplyOfRequest,
             QuerySupplyOfResponse,
         },
@@ -19,7 +19,8 @@ use wbtc_controller::{
     msg::{
         ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
         GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetTokenDenomResponse,
-        InstantiateMsg, ListBurnRequestsResponse, ListMintRequestsResponse, QueryMsg,
+        InstantiateMsg, IsPausedResponse, ListBurnRequestsResponse, ListMintRequestsResponse,
+        QueryMsg,
     },
     BurnRequestStatus, MintRequestStatus, TxId,
 };
@@ -278,8 +279,6 @@ fn test_mint_and_burn() {
     )
     .unwrap();
 
-    // setup merchants
-
     // add merchant
     wbtc.execute(
         &ExecuteMsg::AddMerchant {
@@ -478,4 +477,249 @@ fn test_mint_and_burn() {
         .tx_id,
         TxId::Confirmed("tx_id_2".to_string())
     );
+}
+
+#[test]
+fn test_token_pause_and_unpause_transfer() {
+    let app = OsmosisTestApp::default();
+    let bank = Bank::new(&app);
+
+    let accs = app
+        .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 5)
+        .unwrap();
+    let owner = &accs[0];
+    let custodian = &accs[1];
+    let merchant = &accs[2];
+    let other = &accs[3];
+
+    let wbtc = WBTC::deploy(
+        &app,
+        &InstantiateMsg {
+            owner: owner.address(),
+            subdenom: "wbtc".to_string(),
+        },
+        &[Coin::new(10000000, "uosmo")],
+        &owner,
+    )
+    .unwrap();
+
+    // get token denom
+    let GetTokenDenomResponse { denom } = wbtc
+        .query::<GetTokenDenomResponse>(&QueryMsg::GetTokenDenom {})
+        .unwrap();
+
+    // set custodian
+    wbtc.execute(
+        &ExecuteMsg::SetCustodian {
+            address: custodian.address(),
+        },
+        &[],
+        &owner,
+    )
+    .unwrap();
+
+    // add merchant
+    wbtc.execute(
+        &ExecuteMsg::AddMerchant {
+            address: merchant.address(),
+        },
+        &[],
+        &owner,
+    )
+    .unwrap();
+
+    // set custodian deposit address
+    wbtc.execute(
+        &ExecuteMsg::SetCustodianDepositAddress {
+            merchant: merchant.address(),
+            deposit_address: format!("bc1{}", merchant.address()),
+        },
+        &[],
+        &custodian,
+    )
+    .unwrap();
+
+    // set merchant deposit address
+    wbtc.execute(
+        &ExecuteMsg::SetMerchantDepositAddress {
+            deposit_address: format!("bc1{}", merchant.address()),
+        },
+        &[],
+        &merchant,
+    )
+    .unwrap();
+
+    // issue mint request
+    let amount = Uint128::from(100000000u128);
+    let res = wbtc
+        .execute(
+            &ExecuteMsg::IssueMintRequest {
+                amount,
+                tx_id: "tx_id_1".to_string(),
+                deposit_address: format!("bc1{}", merchant.address()),
+            },
+            &[],
+            &merchant,
+        )
+        .unwrap();
+
+    let request_hash = res
+        .events
+        .iter()
+        .find(|e| e.ty == "wasm")
+        .unwrap()
+        .attributes
+        .iter()
+        .find(|attr| attr.key == "request_hash")
+        .unwrap()
+        .value
+        .to_string();
+
+    // approve mint request
+    wbtc.execute(
+        &ExecuteMsg::ApproveMintRequest {
+            request_hash: request_hash.clone(),
+        },
+        &[],
+        &custodian,
+    )
+    .unwrap();
+
+    // check balance
+    let QueryBalanceResponse { balance } = bank
+        .query_balance(&QueryBalanceRequest {
+            address: merchant.address(),
+            denom: denom.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.unwrap().amount, amount.to_string());
+
+    // send tokens to other account
+    bank.send(
+        MsgSend {
+            from_address: merchant.address(),
+            to_address: other.address(),
+            amount: vec![
+                osmosis_test_tube::cosmrs::proto::cosmos::base::v1beta1::Coin {
+                    denom: denom.clone(),
+                    amount: (amount / Uint128::from(2u128)).into(),
+                },
+            ],
+        },
+        &merchant,
+    )
+    .unwrap();
+
+    // check other balance
+    let QueryBalanceResponse { balance } = bank
+        .query_balance(&QueryBalanceRequest {
+            address: other.address(),
+            denom: denom.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(
+        balance.unwrap().amount,
+        (amount / Uint128::from(2u128)).to_string()
+    );
+
+    // check merchant balance
+    let QueryBalanceResponse { balance } = bank
+        .query_balance(&QueryBalanceRequest {
+            address: merchant.address(),
+            denom: denom.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(
+        balance.unwrap().amount,
+        (amount / Uint128::from(2u128)).to_string()
+    );
+
+    // pause transfer
+    wbtc.execute(&ExecuteMsg::Pause {}, &[], &owner).unwrap();
+
+    // check is paused
+    let IsPausedResponse { is_paused } = wbtc
+        .query::<IsPausedResponse>(&QueryMsg::IsPaused {})
+        .unwrap();
+
+    assert_eq!(is_paused, true);
+
+    // try to send tokens to other account
+    let res = bank.send(
+        MsgSend {
+            from_address: merchant.address(),
+            to_address: other.address(),
+            amount: vec![
+                osmosis_test_tube::cosmrs::proto::cosmos::base::v1beta1::Coin {
+                    denom: denom.clone(),
+                    amount: (amount / Uint128::from(2u128)).into(),
+                },
+            ],
+        },
+        &merchant,
+    );
+
+    assert_eq!(
+        res.unwrap_err().to_string(),
+        format!("execute error: failed to execute message; message index: 0: failed to call before send hook for denom {denom}: Token transfer is paused: execute wasm contract failed")
+    );
+
+    // try to send tokens from other account
+    let res = bank.send(
+        MsgSend {
+            from_address: other.address(),
+            to_address: merchant.address(),
+            amount: vec![
+                osmosis_test_tube::cosmrs::proto::cosmos::base::v1beta1::Coin {
+                    denom: denom.clone(),
+                    amount: (amount / Uint128::from(2u128)).into(),
+                },
+            ],
+        },
+        &other,
+    );
+
+    assert_eq!(
+        res.unwrap_err().to_string(),
+        format!("execute error: failed to execute message; message index: 0: failed to call before send hook for denom {denom}: Token transfer is paused: execute wasm contract failed")
+    );
+
+    // unpause
+    wbtc.execute(&ExecuteMsg::Unpause {}, &[], &owner).unwrap();
+
+    // check is paused
+    let IsPausedResponse { is_paused } = wbtc
+        .query::<IsPausedResponse>(&QueryMsg::IsPaused {})
+        .unwrap();
+
+    assert_eq!(is_paused, false);
+
+    // send tokens to other account
+    bank.send(
+        MsgSend {
+            from_address: merchant.address(),
+            to_address: other.address(),
+            amount: vec![
+                osmosis_test_tube::cosmrs::proto::cosmos::base::v1beta1::Coin {
+                    denom: denom.clone(),
+                    amount: (amount / Uint128::from(2u128)).into(),
+                },
+            ],
+        },
+        &merchant,
+    )
+    .unwrap();
+
+    // check other balance
+    let QueryBalanceResponse { balance } = bank
+        .query_balance(&QueryBalanceRequest {
+            address: other.address(),
+            denom: denom.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.unwrap().amount, amount.to_string());
 }

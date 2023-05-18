@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Coin, Uint128};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 use crate::tokenfactory::{
@@ -284,4 +284,16 @@ pub struct GetMerchantDepositAddressResponse {
 #[cw_serde]
 pub struct IsPausedResponse {
     pub is_paused: bool,
+}
+
+/// SudoMsg is only exposed for internal Cosmos SDK modules to call.
+/// This is showing how we can expose "admin" functionality than can not be called by
+/// external users or contracts, but only trusted (native/Go) code in the blockchain
+#[cw_serde]
+pub enum SudoMsg {
+    BlockBeforeSend {
+        from: String,
+        to: String,
+        amount: Coin,
+    },
 }
