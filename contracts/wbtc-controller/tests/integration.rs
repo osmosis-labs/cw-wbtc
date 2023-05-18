@@ -399,12 +399,8 @@ fn test_mint_and_burn() {
     );
 
     // issue burn request
-    wbtc.execute(
-        &ExecuteMsg::Burn { amount },
-        &[Coin::new(amount.u128(), denom.clone())],
-        &merchant,
-    )
-    .unwrap();
+    wbtc.execute(&ExecuteMsg::Burn { amount }, &[], &merchant)
+        .unwrap();
 
     // check burn request
     let res: ListBurnRequestsResponse = wbtc

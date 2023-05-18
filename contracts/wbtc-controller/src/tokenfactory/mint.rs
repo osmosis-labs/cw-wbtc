@@ -9,8 +9,8 @@ use crate::{
 };
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, Addr, Attribute, BankMsg, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Uint128,
+    attr, ensure, Addr, Attribute, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
@@ -185,20 +185,14 @@ pub fn approve_mint_request(
     let denom = token::get_token_denom(deps.storage)?;
 
     let token_to_mint = Coin::new(amount.u128(), denom);
-    let mint_to_requester_msgs = vec![
-        MsgMint {
-            sender: contract_address.to_string(),
-            amount: Some(token_to_mint.clone().into()),
-        }
-        .into(),
-        CosmosMsg::Bank(BankMsg::Send {
-            to_address: requester.to_string(),
-            amount: vec![token_to_mint],
-        }),
-    ];
+    let mint_to_requester_msg = MsgMint {
+        sender: contract_address.to_string(),
+        amount: Some(token_to_mint.clone().into()),
+        mint_to_address: requester.to_string(),
+    };
 
     Ok(Response::new()
-        .add_messages(mint_to_requester_msgs)
+        .add_message(mint_to_requester_msg)
         .add_attributes(attrs))
 }
 
@@ -260,7 +254,7 @@ mod tests {
     use super::*;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, BankMsg, BlockInfo, Coin, DepsMut, Env, Response, StdError, SubMsg, Timestamp,
+        Addr, BlockInfo, Coin, DepsMut, Env, Response, StdError, SubMsg, Timestamp,
         TransactionInfo, Uint128,
     };
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
@@ -550,16 +544,11 @@ mod tests {
         // and should mint new token to merchant
         assert_eq!(
             res.messages,
-            vec![
-                SubMsg::new(MsgMint {
-                    sender: contract.to_string(),
-                    amount: Some(Coin::new(amount.u128(), denom.clone()).into())
-                }),
-                SubMsg::new(BankMsg::Send {
-                    to_address: merchant.to_string(), // requester
-                    amount: vec![Coin::new(amount.u128(), denom).into()]
-                })
-            ]
+            vec![SubMsg::new(MsgMint {
+                sender: contract.to_string(),
+                amount: Some(Coin::new(amount.u128(), denom.clone()).into()),
+                mint_to_address: merchant.to_string(),
+            }),]
         );
 
         // check mint request status

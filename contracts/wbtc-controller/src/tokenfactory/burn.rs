@@ -85,7 +85,7 @@ pub fn burn(
     // record burn request
     let (request_hash, request) = burn_requests().issue(
         deps.branch(),
-        info.sender,
+        info.sender.clone(),
         amount,
         // tx_id will later be confirmed by the custodian
         TxId::Pending,
@@ -103,21 +103,12 @@ pub fn burn(
     let RequestData { amount, .. } = request.data;
     let denom = token::get_token_denom(deps.storage)?;
     let token_to_burn = Coin::new(amount.u128(), denom);
-    let token_to_burn_vec = vec![token_to_burn.clone()];
 
-    // ensure that funds sent from msg sender matches the amount requested
-    ensure!(
-        info.funds == token_to_burn_vec,
-        ContractError::MismatchedFunds {
-            expected: token_to_burn_vec,
-            actual: info.funds,
-        }
-    );
-
-    // burn the requested amount of tokens
+    // burn the requested amount of tokens from sender, which can only be the merchant
     let burn_msg: CosmosMsg = MsgBurn {
         sender: env.contract.address.to_string(),
         amount: Some(token_to_burn.into()),
+        burn_from_address: info.sender.to_string(),
     }
     .into();
 
@@ -264,7 +255,8 @@ mod tests {
             res.messages,
             vec![SubMsg::new(MsgBurn {
                 sender: contract_addr.to_string(),
-                amount: Some(token_to_burn.clone().into())
+                amount: Some(token_to_burn.clone().into()),
+                burn_from_address: merchant.to_string(),
             })]
         );
 
@@ -306,51 +298,6 @@ mod tests {
         assert_eq!(
             burn_fixture(deps.as_mut(), mock_info(custodian, &[])).unwrap_err(),
             ContractError::Unauthorized {}
-        );
-
-        // burn fail if sent funds don't match with burn amount
-        assert_eq!(
-            burn_fixture(deps.as_mut(), mock_info(merchant, &[])).unwrap_err(),
-            ContractError::MismatchedFunds {
-                expected: vec![token_to_burn.clone()],
-                actual: vec![],
-            }
-        );
-
-        assert_eq!(
-            burn_fixture(
-                deps.as_mut(),
-                mock_info(merchant, &[Coin::new(999, denom.clone())])
-            )
-            .unwrap_err(),
-            ContractError::MismatchedFunds {
-                expected: vec![token_to_burn.clone()],
-                actual: vec![Coin::new(999, denom.clone())],
-            }
-        );
-
-        assert_eq!(
-            burn_fixture(
-                deps.as_mut(),
-                mock_info(merchant, &[Coin::new(9999999999999, denom.clone())])
-            )
-            .unwrap_err(),
-            ContractError::MismatchedFunds {
-                expected: vec![token_to_burn.clone()],
-                actual: vec![Coin::new(9999999999999, denom)],
-            }
-        );
-
-        assert_eq!(
-            burn_fixture(
-                deps.as_mut(),
-                mock_info(merchant, &[token_to_burn.clone(), Coin::new(1000, "uosmo")])
-            )
-            .unwrap_err(),
-            ContractError::MismatchedFunds {
-                expected: vec![token_to_burn.clone()],
-                actual: vec![token_to_burn.clone(), Coin::new(1000, "uosmo")],
-            }
         );
     }
 
