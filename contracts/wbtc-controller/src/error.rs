@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, StdError};
+use cosmwasm_std::StdError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -15,9 +15,6 @@ pub enum ContractError {
     #[error("Custodian deposit address not found for merchant {merchant}")]
     CustodianDepositAddressNotFound { merchant: String },
 
-    #[error("Mismatched funds: expected: {expected:?}, actual: {actual:?}")]
-    MismatchedFunds {
-        expected: Vec<Coin>,
-        actual: Vec<Coin>,
-    },
+    #[error("Token transfer is paused")]
+    TokenTransferPaused {},
 }

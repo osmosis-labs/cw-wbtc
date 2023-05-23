@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Coin, Uint128};
 use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
 use crate::tokenfactory::{
@@ -74,6 +74,12 @@ pub enum ExecuteMsg {
 
     /// Set denom metadata. Message sender must be the owner.
     SetDenomMetadata { metadata: Metadata },
+
+    /// Pause contract. Message sender must be the owner.
+    Pause {},
+
+    /// Unpause contract. Message sender must be the owner.
+    Unpause {},
 }
 
 #[cw_serde]
@@ -182,6 +188,10 @@ pub enum QueryMsg {
     /// Get merchant deposit address of the specified merchant.
     #[returns(GetMerchantDepositAddressResponse)]
     GetMerchantDepositAddress { merchant: String },
+
+    /// Check if token transfers are paused.
+    #[returns(IsPausedResponse)]
+    IsPaused {},
 }
 
 #[cw_serde]
@@ -269,4 +279,21 @@ pub struct GetCustodianDepositAddressResponse {
 #[cw_serde]
 pub struct GetMerchantDepositAddressResponse {
     pub address: String,
+}
+
+#[cw_serde]
+pub struct IsPausedResponse {
+    pub is_paused: bool,
+}
+
+/// SudoMsg is only exposed for internal Cosmos SDK modules to call.
+/// This is showing how we can expose "admin" functionality than can not be called by
+/// external users or contracts, but only trusted (native/Go) code in the blockchain
+#[cw_serde]
+pub enum SudoMsg {
+    BlockBeforeSend {
+        from: String,
+        to: String,
+        amount: Coin,
+    },
 }

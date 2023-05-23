@@ -1,5 +1,7 @@
 /// `token` module provides the functionality to manage the token denom and it's metadata.
-use cosmwasm_std::{attr, Deps, Env, MessageInfo, Response, StdResult, Storage};
+use cosmwasm_std::{
+    attr, Attribute, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
+};
 use cw_storage_plus::Item;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::Metadata, osmosis::tokenfactory::v1beta1::MsgSetDenomMetadata,
@@ -53,6 +55,36 @@ pub fn set_denom_metadata(
     Ok(Response::new()
         .add_attributes(attrs)
         .add_message(msg_set_denom_metadata))
+}
+
+/// Pause status storage.
+const IS_PAUSED: Item<bool> = Item::new("is_paused");
+
+/// Set the pause status.
+pub fn pause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
+    allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
+
+    IS_PAUSED.save(deps.storage, &true)?;
+
+    let attrs = action_attrs("pause", vec![] as Vec<Attribute>);
+
+    Ok(Response::new().add_attributes(attrs))
+}
+
+/// Unset the pause status.
+pub fn unpause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
+    allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
+
+    IS_PAUSED.save(deps.storage, &false)?;
+
+    let attrs = action_attrs("unpause", vec![] as Vec<Attribute>);
+
+    Ok(Response::new().add_attributes(attrs))
+}
+
+/// Check if the contract is paused.
+pub fn is_paused(deps: Deps) -> StdResult<bool> {
+    Ok(IS_PAUSED.may_load(deps.storage)?.unwrap_or(false))
 }
 
 #[cfg(test)]
@@ -128,5 +160,57 @@ mod tests {
                 metadata: Some(metadata)
             })]
         );
+    }
+
+    #[test]
+    fn test_only_owner_can_pause_and_unpause() {
+        let owner = "osmo1owner";
+        let custodian = "osmo1custodian";
+        let merchant = "osmo1merchant";
+        let mut deps = mock_dependencies();
+
+        // setup
+        owner::initialize_owner(deps.as_mut(), owner).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+
+        // default status is not paused
+        assert_eq!(is_paused(deps.as_ref()).unwrap(), false);
+
+        assert_eq!(
+            pause(deps.as_mut(), &mock_info(custodian, &[])).unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        assert_eq!(
+            pause(deps.as_mut(), &mock_info(merchant, &[])).unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        assert_eq!(
+            pause(deps.as_mut(), &mock_info(owner, &[])).unwrap(),
+            Response::new().add_attributes(vec![attr("action", "pause")])
+        );
+
+        // status is paused
+        assert_eq!(is_paused(deps.as_ref()).unwrap(), true);
+
+        assert_eq!(
+            unpause(deps.as_mut(), &mock_info(custodian, &[])).unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        assert_eq!(
+            unpause(deps.as_mut(), &mock_info(merchant, &[])).unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        assert_eq!(
+            unpause(deps.as_mut(), &mock_info(owner, &[])).unwrap(),
+            Response::new().add_attributes(vec![attr("action", "unpause")])
+        );
+
+        // status is not paused
+        assert_eq!(is_paused(deps.as_ref()).unwrap(), false);
     }
 }

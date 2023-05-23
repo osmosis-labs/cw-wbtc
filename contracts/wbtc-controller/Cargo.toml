@@ -45,7 +45,7 @@ cosmwasm-std = "1.2.5"
 cosmwasm-storage = "1.2.5"
 cw-storage-plus = "1.0.1"
 cw2 = "1.0.1"
-osmosis-std = "0.15.2"
+osmosis-std = { git = "https://github.com/osmosis-labs/osmosis-rust.git" }
 schemars = "0.8.12"
 serde = { version = "1.0.160", default-features = false, features = ["derive"] }
 sha3 = "0.10.8"
