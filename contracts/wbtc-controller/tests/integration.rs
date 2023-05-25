@@ -18,9 +18,9 @@ use serde::de::DeserializeOwned;
 use wbtc_controller::{
     msg::{
         ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
-        GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetTokenDenomResponse,
-        InstantiateMsg, IsPausedResponse, ListBurnRequestsResponse, ListMintRequestsResponse,
-        QueryMsg,
+        GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse,
+        GetTokenDenomResponse, InstantiateMsg, IsPausedResponse, ListBurnRequestsResponse,
+        ListMintRequestsResponse, QueryMsg,
     },
     BurnRequestStatus, MintRequestStatus, TxId,
 };
@@ -397,6 +397,10 @@ fn test_mint_and_burn() {
         amount.to_string()
     );
 
+    // =========================================
+
+    let amount = amount / Uint128::new(2);
+
     // issue burn request
     wbtc.execute(&ExecuteMsg::Burn { amount }, &[], &merchant)
         .unwrap();
@@ -443,7 +447,7 @@ fn test_mint_and_burn() {
         .amount
         .unwrap()
         .amount,
-        "0"
+        "50000000"
     );
 
     // check balance
@@ -454,7 +458,7 @@ fn test_mint_and_burn() {
         })
         .unwrap();
 
-    assert_eq!(balance.unwrap().amount, "0");
+    assert_eq!(balance.unwrap().amount, "50000000");
 
     // confirm burn request
     wbtc.execute(
@@ -476,6 +480,95 @@ fn test_mint_and_burn() {
         .data
         .tx_id,
         TxId::Confirmed("tx_id_2".to_string())
+    );
+
+    // set min burn amount
+    let min_burn_amount = Uint128::new(100u128);
+
+    // failed if not custodian
+    let err = wbtc
+        .execute(
+            &ExecuteMsg::SetMinBurnAmount {
+                amount: min_burn_amount.clone(),
+            },
+            &[],
+            &owner,
+        )
+        .unwrap_err();
+
+    assert_eq!(err.to_string(), "execute error: failed to execute message; message index: 0: Unauthorized: execute wasm contract failed");
+
+    // success if custodian
+    wbtc.execute(
+        &ExecuteMsg::SetMinBurnAmount {
+            amount: min_burn_amount.clone(),
+        },
+        &[],
+        &custodian,
+    )
+    .unwrap();
+
+    // check min burn amount
+    assert_eq!(
+        wbtc.query::<GetMinBurnAmountResponse>(&QueryMsg::GetMinBurnAmount {})
+            .unwrap()
+            .amount,
+        min_burn_amount
+    );
+
+    let err = wbtc
+        .execute(
+            &ExecuteMsg::Burn {
+                amount: min_burn_amount - Uint128::one(),
+            },
+            &[],
+            &merchant,
+        )
+        .unwrap_err();
+    assert_eq!(err.to_string(), "execute error: failed to execute message; message index: 0: Burn amount too small: required at least 100, but got 99: execute wasm contract failed");
+
+    wbtc.execute(
+        &ExecuteMsg::Burn {
+            amount: min_burn_amount,
+        },
+        &[],
+        &merchant,
+    )
+    .unwrap();
+
+    // check supply
+    assert_eq!(
+        app.query::<QuerySupplyOfRequest, QuerySupplyOfResponse>(
+            "/cosmos.bank.v1beta1.Query/SupplyOf",
+            &QuerySupplyOfRequest {
+                denom: denom.clone(),
+            }
+        )
+        .unwrap()
+        .amount
+        .unwrap()
+        .amount,
+        "49999900"
+    );
+
+    // check balance
+    let QueryBalanceResponse { balance } = bank
+        .query_balance(&QueryBalanceRequest {
+            address: merchant.address(),
+            denom: denom.clone(),
+        })
+        .unwrap();
+
+    assert_eq!(balance.unwrap().amount, "49999900");
+
+    // over burn
+    let err = wbtc
+        .execute(&ExecuteMsg::Burn { amount }, &[], &merchant)
+        .unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        format!("execute error: failed to execute message; message index: 0: dispatch: submessages: 49999900{} is smaller than 50000000{}: insufficient funds", denom, denom)
     );
 }
 
