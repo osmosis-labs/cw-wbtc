@@ -6,6 +6,7 @@ use cosmwasm_std::{
     attr, ensure, Attribute, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128,
 };
+use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
@@ -66,6 +67,8 @@ fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
     )
 }
 
+const MIN_BURN_AMOUNT: Item<Uint128> = Item::new("min_burn_amount");
+
 /// Burn the requested amount of tokens.
 /// Only the merchant can burn tokens.
 /// This will be executed immediately and created an `Executed` burn request.
@@ -78,6 +81,16 @@ pub fn burn(
     amount: Uint128,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
+
+    // ensure the requested amount is greater than the min burn amount
+    let min_burn_amount = get_min_burn_amount(deps.as_ref())?;
+    ensure!(
+        amount >= min_burn_amount,
+        ContractError::BurnAmountTooSmall {
+            requested_burn_amount: amount,
+            min_burn_amount
+        }
+    );
 
     let deposit_address =
         deposit_address::get_merchant_deposit_address(deps.as_ref(), &info.sender)?;
@@ -168,6 +181,24 @@ pub fn get_burn_request_count(deps: Deps) -> StdResult<Uint128> {
     burn_requests().get_request_count(deps)
 }
 
+/// Set the minimum burn amount. Only the custodian can set the minimum burn amount.
+pub fn set_min_burn_amount(
+    deps: DepsMut,
+    info: &MessageInfo,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
+    allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
+
+    MIN_BURN_AMOUNT.save(deps.storage, &amount)?;
+
+    let attrs = action_attrs("set_min_burn_amount", vec![attr("amount", amount)]);
+    Ok(Response::new().add_attributes(attrs))
+}
+
+pub fn get_min_burn_amount(deps: Deps) -> StdResult<Uint128> {
+    Ok(MIN_BURN_AMOUNT.may_load(deps.storage)?.unwrap_or_default())
+}
+
 pub fn list_burn_requests(
     deps: Deps,
     limit: Option<u32>,
@@ -180,7 +211,8 @@ pub fn list_burn_requests(
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
-        testing::{mock_dependencies, mock_info},
+        attr,
+        testing::{mock_dependencies, mock_env, mock_info},
         Addr, BlockInfo, Coin, DepsMut, Env, MessageInfo, SubMsg, Timestamp, TransactionInfo,
         Uint128,
     };
@@ -189,7 +221,7 @@ mod tests {
     use crate::{
         auth::{custodian, merchant, owner},
         tokenfactory::{
-            burn::{burn_requests, confirm_burn_request, BurnRequestStatus},
+            burn::{burn_requests, confirm_burn_request, set_min_burn_amount, BurnRequestStatus},
             deposit_address,
             request::{RequestData, TxId},
             token,
@@ -247,8 +279,7 @@ mod tests {
         let burn_fixture = |deps: DepsMut, info: MessageInfo| burn(deps, env.clone(), info, amount);
 
         // burn success
-        let res =
-            burn_fixture(deps.as_mut(), mock_info(merchant, &[token_to_burn.clone()])).unwrap();
+        let res = burn_fixture(deps.as_mut(), mock_info(merchant, &[])).unwrap();
 
         // sends burn msg
         assert_eq!(
@@ -331,8 +362,6 @@ mod tests {
         .unwrap();
 
         let amount = Uint128::new(100_000_000);
-        let denom = token::get_token_denom(deps.as_ref().storage).unwrap();
-        let token_to_burn = Coin::new(amount.u128(), denom.clone());
 
         let env = Env {
             block: BlockInfo {
@@ -346,13 +375,7 @@ mod tests {
             },
         };
 
-        let res = burn(
-            deps.as_mut(),
-            env.clone(),
-            mock_info(merchant, &[token_to_burn.clone()]),
-            amount,
-        )
-        .unwrap();
+        let res = burn(deps.as_mut(), env.clone(), mock_info(merchant, &[]), amount).unwrap();
 
         let request_hash = res
             .attributes
@@ -386,6 +409,111 @@ mod tests {
         assert_eq!(
             request_after.data.tx_id,
             TxId::Confirmed("btc_tx_id".to_string())
+        );
+    }
+
+    #[test]
+    fn test_min_burn_amount() {
+        let owner = "osmo1owner";
+        let custodian = "osmo1custodian";
+        let merchant = "osmo1merchant";
+
+        let deposit_address = "bc1depositaddress";
+        let contract_addr =
+            Addr::unchecked("osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9");
+        let mut deps = mock_dependencies();
+
+        // setup
+        owner::initialize_owner(deps.as_mut(), owner).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+
+        deposit_address::set_merchant_deposit_address(
+            deps.as_mut(),
+            &mock_info(merchant, &[]),
+            deposit_address,
+        )
+        .unwrap();
+
+        token::set_token_denom(
+            deps.as_mut().storage,
+            &format!("factory/{}/wbtc", contract_addr),
+        )
+        .unwrap();
+
+        // burn small amount
+        let requested_burn_amount = Uint128::new(1);
+        let min_burn_amount = Uint128::new(100);
+
+        // if nothing is set, min burn amount is 0
+        assert!(burn(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            requested_burn_amount
+        )
+        .is_ok());
+
+        // set min burn amount
+        // only custodian can set
+        assert_eq!(
+            set_min_burn_amount(deps.as_mut(), &mock_info(owner, &[]), min_burn_amount)
+                .unwrap_err(),
+            ContractError::Unauthorized {}
+        );
+
+        assert_eq!(
+            set_min_burn_amount(deps.as_mut(), &mock_info(custodian, &[]), min_burn_amount)
+                .unwrap()
+                .attributes,
+            vec![attr("action", "set_min_burn_amount"), attr("amount", "100"),]
+        );
+
+        assert_eq!(
+            burn(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(merchant, &[]),
+                requested_burn_amount
+            )
+            .unwrap_err(),
+            ContractError::BurnAmountTooSmall {
+                requested_burn_amount,
+                min_burn_amount,
+            }
+        );
+
+        // burn at least min burn amount should succeed
+        assert!(burn(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            min_burn_amount
+        )
+        .is_ok());
+
+        // burn more than min burn amount should succeed
+        assert!(burn(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            min_burn_amount + Uint128::new(1)
+        )
+        .is_ok());
+
+        // burn less than min burn amount should fail
+        assert_eq!(
+            burn(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(merchant, &[]),
+                min_burn_amount - Uint128::new(1)
+            )
+            .unwrap_err(),
+            ContractError::BurnAmountTooSmall {
+                requested_burn_amount: min_burn_amount - Uint128::new(1),
+                min_burn_amount,
+            }
         );
     }
 }

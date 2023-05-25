@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -17,4 +17,10 @@ pub enum ContractError {
 
     #[error("Token transfer is paused")]
     TokenTransferPaused {},
+
+    #[error("Burn amount too small: required at least {min_burn_amount}, but got {requested_burn_amount}")]
+    BurnAmountTooSmall {
+        requested_burn_amount: Uint128,
+        min_burn_amount: Uint128,
+    },
 }

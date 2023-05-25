@@ -14,10 +14,10 @@ use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
-    GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
-    IsMerchantResponse, IsOwnerResponse, IsPausedResponse, ListBurnRequestsResponse,
-    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
+    GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse,
+    GetMintRequestsCountResponse, GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg,
+    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, IsPausedResponse,
+    ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -88,6 +88,7 @@ pub fn execute(
             request_hash,
             tx_id,
         } => burn::confirm_burn_request(deps, env, info, request_hash, tx_id),
+        ExecuteMsg::SetMinBurnAmount { amount } => burn::set_min_burn_amount(deps, &info, amount),
 
         // === auth ===
         ExecuteMsg::TransferOwnership { new_owner_address } => {
@@ -173,6 +174,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             status,
         } => to_binary(&ListBurnRequestsResponse {
             requests: burn::list_burn_requests(deps, limit, start_after_nonce, status)?,
+        }),
+
+        QueryMsg::GetMinBurnAmount {} => to_binary(&GetMinBurnAmountResponse {
+            amount: burn::get_min_burn_amount(deps)?,
         }),
 
         // === token ===
