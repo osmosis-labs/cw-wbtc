@@ -116,3 +116,30 @@ console.dir(result.logs[0].events, {depth: null})
 Find more available methods in [`ts/sdk/types/contracts/WbtcController.client.d.ts`](./ts/sdk/types/contracts/WbtcController.client.d.ts). As you might notice, the methods are generated from the contract's schema and could be imported as javascript/typescript module.
 
 Find out how to use console in [Beaker's readme](https://github.com/osmosis-labs/beaker#console)
+
+
+## Flows
+
+
+### mint
+```mermaid
+stateDiagram-v2
+    [*] --> Pending: merchant – IssueMintRequest
+
+    Pending --> Canceled: requesting merchant – CancelMintRequest
+    Pending --> Approved: custodian – ApproveMintRequest
+    Pending --> Rejected: custodian – RejectMintRequest
+
+    Canceled --> [*]
+    Approved --> [*]
+    Rejected --> [*]
+```
+
+### burn
+
+```mermaid
+stateDiagram-v2
+    [*] --> Executed: merchant – Burn
+    Executed --> Confirmed: custodian – ConfirmBurnRequest
+    Confirmed --> [*]
+```
