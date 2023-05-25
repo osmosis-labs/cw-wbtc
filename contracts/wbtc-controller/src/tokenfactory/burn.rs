@@ -482,5 +482,38 @@ mod tests {
                 min_burn_amount,
             }
         );
+
+        // burn at least min burn amount should succeed
+        assert!(burn(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            min_burn_amount
+        )
+        .is_ok());
+
+        // burn more than min burn amount should succeed
+        assert!(burn(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            min_burn_amount + Uint128::new(1)
+        )
+        .is_ok());
+
+        // burn less than min burn amount should fail
+        assert_eq!(
+            burn(
+                deps.as_mut(),
+                mock_env(),
+                mock_info(merchant, &[]),
+                min_burn_amount - Uint128::new(1)
+            )
+            .unwrap_err(),
+            ContractError::BurnAmountTooSmall {
+                requested_burn_amount: min_burn_amount - Uint128::new(1),
+                min_burn_amount,
+            }
+        );
     }
 }
