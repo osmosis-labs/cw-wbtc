@@ -61,7 +61,7 @@ stateDiagram-v2
     Rejected --> [*]
 ```
 
-### Burn Request
+#### Burn Request
 
 ```mermaid
 stateDiagram-v2
