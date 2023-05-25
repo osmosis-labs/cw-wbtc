@@ -72,6 +72,9 @@ pub enum ExecuteMsg {
     /// Once the custodian has sent the BTC to the merchant's deposit address, the custodian can confirm the burn request.
     ConfirmBurnRequest { request_hash: String, tx_id: String },
 
+    /// Set minimum burn amount. Message sender must be the Custodian.
+    SetMinBurnAmount { amount: Uint128 },
+
     /// Set denom metadata. Message sender must be the owner.
     SetDenomMetadata { metadata: Metadata },
 
@@ -142,6 +145,10 @@ pub enum QueryMsg {
         /// If not specified, default to all statuses.
         status: Option<BurnRequestStatus>,
     },
+
+    /// Get minimum burn amount.
+    #[returns(GetMinBurnAmountResponse)]
+    GetMinBurnAmount {},
 
     /// Get token denom associated with this contract.
     #[returns(GetTokenDenomResponse)]
@@ -284,6 +291,11 @@ pub struct GetMerchantDepositAddressResponse {
 #[cw_serde]
 pub struct IsPausedResponse {
     pub is_paused: bool,
+}
+
+#[cw_serde]
+pub struct GetMinBurnAmountResponse {
+    pub amount: Uint128,
 }
 
 /// SudoMsg is only exposed for internal Cosmos SDK modules to call.
