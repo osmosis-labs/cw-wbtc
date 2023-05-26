@@ -70,14 +70,14 @@ mod tests {
         let err = set_custodian(
             deps.as_mut(),
             &mock_info(non_owner, &[]),
-            &custodian_address,
+            custodian_address,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // set custodian
         assert_eq!(
-            set_custodian(deps.as_mut(), &mock_info(owner, &[]), &custodian_address)
+            set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian_address)
                 .unwrap()
                 .attributes,
             vec![

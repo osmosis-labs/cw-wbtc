@@ -187,7 +187,7 @@ pub fn approve_mint_request(
     let token_to_mint = Coin::new(amount.u128(), denom);
     let mint_to_requester_msg = MsgMint {
         sender: contract_address.to_string(),
-        amount: Some(token_to_mint.clone().into()),
+        amount: Some(token_to_mint.into()),
         mint_to_address: requester.to_string(),
     };
 
@@ -507,7 +507,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found(format!("Request with hash `non-existing-request-hash`")).into()
+            StdError::not_found("Request with hash `non-existing-request-hash`".to_string()).into()
         );
 
         // approve mint request with non existing request hash by merchant should fail
@@ -546,7 +546,7 @@ mod tests {
             res.messages,
             vec![SubMsg::new(MsgMint {
                 sender: contract.to_string(),
-                amount: Some(Coin::new(amount.u128(), denom.clone()).into()),
+                amount: Some(Coin::new(amount.u128(), denom).into()),
                 mint_to_address: merchant.to_string(),
             }),]
         );
@@ -625,7 +625,7 @@ mod tests {
 
         assert_eq!(
             err,
-            StdError::not_found(format!("Request with hash `non-existing-request-hash`")).into()
+            StdError::not_found("Request with hash `non-existing-request-hash`".to_string()).into()
         );
 
         // reject mint request with non existing request hash by merchant should fail

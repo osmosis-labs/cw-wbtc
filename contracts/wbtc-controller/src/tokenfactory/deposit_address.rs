@@ -105,7 +105,7 @@ pub fn set_merchant_deposit_address(
         MERCHANT_DEPOSIT_ADDRESS.set_deposit_address(
             deps,
             info,
-            &info.sender.to_string(),
+            info.sender.as_ref(),
             deposit_address,
         )?,
     )))
@@ -140,9 +140,9 @@ mod tests {
 
         // setup
         owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(&owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_1).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_2).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_2).unwrap();
 
         // no custodian deposit address set yet
         assert_eq!(
@@ -162,7 +162,7 @@ mod tests {
         assert_eq!(
             set_custodian_deposit_address(
                 deps.as_mut(),
-                &mock_info(&merchant_1, &[]),
+                &mock_info(merchant_1, &[]),
                 merchant_1,
                 deposit_address_1,
             )
@@ -173,7 +173,7 @@ mod tests {
         // set custodian deposit address for merchant 1
         set_custodian_deposit_address(
             deps.as_mut(),
-            &mock_info(&custodian, &[]),
+            &mock_info(custodian, &[]),
             merchant_1,
             deposit_address_1,
         )
@@ -187,7 +187,7 @@ mod tests {
         // set custodian deposit address for merchant 2
         set_custodian_deposit_address(
             deps.as_mut(),
-            &mock_info(&custodian, &[]),
+            &mock_info(custodian, &[]),
             merchant_2,
             deposit_address_2,
         )
@@ -210,9 +210,9 @@ mod tests {
 
         // setup
         owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(&owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_1).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(&owner, &[]), merchant_2).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_2).unwrap();
 
         // no merchant deposit address set yet
         assert_eq!(
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(
             set_merchant_deposit_address(
                 deps.as_mut(),
-                &mock_info(&owner, &[]),
+                &mock_info(owner, &[]),
                 deposit_address_1,
             )
             .unwrap_err(),
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(
             set_merchant_deposit_address(
                 deps.as_mut(),
-                &mock_info(&custodian, &[]),
+                &mock_info(custodian, &[]),
                 deposit_address_1,
             )
             .unwrap_err(),
@@ -260,7 +260,7 @@ mod tests {
         // set merchant deposit address for merchant 1
         set_merchant_deposit_address(
             deps.as_mut(),
-            &mock_info(&merchant_1, &[]),
+            &mock_info(merchant_1, &[]),
             deposit_address_1,
         )
         .unwrap();
@@ -273,7 +273,7 @@ mod tests {
         // set merchant deposit address for merchant 2
         set_merchant_deposit_address(
             deps.as_mut(),
-            &mock_info(&merchant_2, &[]),
+            &mock_info(merchant_2, &[]),
             deposit_address_2,
         )
         .unwrap();

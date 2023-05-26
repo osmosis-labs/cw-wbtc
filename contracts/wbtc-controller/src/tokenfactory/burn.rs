@@ -262,7 +262,7 @@ mod tests {
 
         let amount = Uint128::new(100_000_000);
         let denom = token::get_token_denom(deps.as_ref().storage).unwrap();
-        let token_to_burn = Coin::new(amount.u128(), denom.clone());
+        let token_to_burn = Coin::new(amount.u128(), denom);
 
         let env = Env {
             block: BlockInfo {
@@ -286,7 +286,7 @@ mod tests {
             res.messages,
             vec![SubMsg::new(MsgBurn {
                 sender: contract_addr.to_string(),
-                amount: Some(token_to_burn.clone().into()),
+                amount: Some(token_to_burn.into()),
                 burn_from_address: merchant.to_string(),
             })]
         );
@@ -371,7 +371,7 @@ mod tests {
             },
             transaction: Some(TransactionInfo { index: 1 }),
             contract: cosmwasm_std::ContractInfo {
-                address: contract_addr.clone(),
+                address: contract_addr,
             },
         };
 

@@ -106,7 +106,7 @@ fn test_set_denom_metadata() {
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -173,7 +173,7 @@ fn test_set_denom_metadata() {
                 metadata: updated_metadata.clone(),
             },
             &[],
-            &other,
+            other,
         )
         .unwrap_err();
 
@@ -190,7 +190,7 @@ fn test_set_denom_metadata() {
             metadata: updated_metadata.clone(),
         },
         &[],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -209,7 +209,7 @@ fn test_set_denom_metadata() {
             denom_units: vec![
                 // must start with `denom` with exponent 0
                 DenomUnit {
-                    denom: denom.clone(),
+                    denom,
                     exponent: 0,
                     aliases: vec!["uwbtc".to_string()],
                 },
@@ -246,7 +246,7 @@ fn test_mint_and_burn() {
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -275,7 +275,7 @@ fn test_mint_and_burn() {
             address: custodian.address(),
         },
         &[],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -285,7 +285,7 @@ fn test_mint_and_burn() {
             address: merchant.address(),
         },
         &[],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -296,7 +296,7 @@ fn test_mint_and_burn() {
             deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -306,7 +306,7 @@ fn test_mint_and_burn() {
             deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -319,7 +319,7 @@ fn test_mint_and_burn() {
             deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -358,7 +358,7 @@ fn test_mint_and_burn() {
             request_hash: req.request_hash.clone(),
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -402,7 +402,7 @@ fn test_mint_and_burn() {
     let amount = amount / Uint128::new(2);
 
     // issue burn request
-    wbtc.execute(&ExecuteMsg::Burn { amount }, &[], &merchant)
+    wbtc.execute(&ExecuteMsg::Burn { amount }, &[], merchant)
         .unwrap();
 
     // check burn request
@@ -467,7 +467,7 @@ fn test_mint_and_burn() {
             tx_id: "tx_id_2".to_string(),
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -489,10 +489,10 @@ fn test_mint_and_burn() {
     let err = wbtc
         .execute(
             &ExecuteMsg::SetMinBurnAmount {
-                amount: min_burn_amount.clone(),
+                amount: min_burn_amount,
             },
             &[],
-            &owner,
+            owner,
         )
         .unwrap_err();
 
@@ -501,10 +501,10 @@ fn test_mint_and_burn() {
     // success if custodian
     wbtc.execute(
         &ExecuteMsg::SetMinBurnAmount {
-            amount: min_burn_amount.clone(),
+            amount: min_burn_amount,
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -522,7 +522,7 @@ fn test_mint_and_burn() {
                 amount: min_burn_amount - Uint128::one(),
             },
             &[],
-            &merchant,
+            merchant,
         )
         .unwrap_err();
     assert_eq!(err.to_string(), "execute error: failed to execute message; message index: 0: Burn amount too small: required at least 100, but got 99: execute wasm contract failed");
@@ -532,7 +532,7 @@ fn test_mint_and_burn() {
             amount: min_burn_amount,
         },
         &[],
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -563,7 +563,7 @@ fn test_mint_and_burn() {
 
     // over burn
     let err = wbtc
-        .execute(&ExecuteMsg::Burn { amount }, &[], &merchant)
+        .execute(&ExecuteMsg::Burn { amount }, &[], merchant)
         .unwrap_err();
 
     assert_eq!(
@@ -592,7 +592,7 @@ fn test_token_pause_and_unpause_transfer() {
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -607,7 +607,7 @@ fn test_token_pause_and_unpause_transfer() {
             address: custodian.address(),
         },
         &[],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -617,7 +617,7 @@ fn test_token_pause_and_unpause_transfer() {
             address: merchant.address(),
         },
         &[],
-        &owner,
+        owner,
     )
     .unwrap();
 
@@ -628,7 +628,7 @@ fn test_token_pause_and_unpause_transfer() {
             deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -638,7 +638,7 @@ fn test_token_pause_and_unpause_transfer() {
             deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -652,7 +652,7 @@ fn test_token_pause_and_unpause_transfer() {
                 deposit_address: format!("bc1{}", merchant.address()),
             },
             &[],
-            &merchant,
+            merchant,
         )
         .unwrap();
 
@@ -671,10 +671,10 @@ fn test_token_pause_and_unpause_transfer() {
     // approve mint request
     wbtc.execute(
         &ExecuteMsg::ApproveMintRequest {
-            request_hash: request_hash.clone(),
+            request_hash,
         },
         &[],
-        &custodian,
+        custodian,
     )
     .unwrap();
 
@@ -700,7 +700,7 @@ fn test_token_pause_and_unpause_transfer() {
                 },
             ],
         },
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -731,7 +731,7 @@ fn test_token_pause_and_unpause_transfer() {
     );
 
     // pause transfer
-    wbtc.execute(&ExecuteMsg::Pause {}, &[], &owner).unwrap();
+    wbtc.execute(&ExecuteMsg::Pause {}, &[], owner).unwrap();
 
     // check is paused
     let IsPausedResponse { is_paused } = wbtc
@@ -752,7 +752,7 @@ fn test_token_pause_and_unpause_transfer() {
                 },
             ],
         },
-        &merchant,
+        merchant,
     );
 
     assert_eq!(
@@ -772,7 +772,7 @@ fn test_token_pause_and_unpause_transfer() {
                 },
             ],
         },
-        &other,
+        other,
     );
 
     assert_eq!(
@@ -781,7 +781,7 @@ fn test_token_pause_and_unpause_transfer() {
     );
 
     // unpause
-    wbtc.execute(&ExecuteMsg::Unpause {}, &[], &owner).unwrap();
+    wbtc.execute(&ExecuteMsg::Unpause {}, &[], owner).unwrap();
 
     // check is paused
     let IsPausedResponse { is_paused } = wbtc
@@ -802,7 +802,7 @@ fn test_token_pause_and_unpause_transfer() {
                 },
             ],
         },
-        &merchant,
+        merchant,
     )
     .unwrap();
 
@@ -810,7 +810,7 @@ fn test_token_pause_and_unpause_transfer() {
     let QueryBalanceResponse { balance } = bank
         .query_balance(&QueryBalanceRequest {
             address: other.address(),
-            denom: denom.clone(),
+            denom,
         })
         .unwrap();
 

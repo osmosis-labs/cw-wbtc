@@ -40,7 +40,7 @@ pub mod test_helpers {
             ..mock_env()
         };
 
-        instantiate(deps.branch(), env, info.clone(), msg)?;
+        instantiate(deps.branch(), env, info, msg)?;
 
         let new_token_denom = format!("factory/{}/{}", contract_address, subdenom);
 

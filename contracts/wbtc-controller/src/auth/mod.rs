@@ -41,7 +41,7 @@ mod tests {
         let non_custodian_address = "osmo1noncustodian";
 
         // initialize owner
-        owner::initialize_owner(deps.as_mut(), &owner_address).unwrap();
+        owner::initialize_owner(deps.as_mut(), owner_address).unwrap();
 
         // initialize merchant
         merchant::add_merchant(

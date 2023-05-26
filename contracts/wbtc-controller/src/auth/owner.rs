@@ -70,7 +70,7 @@ mod tests {
 
         // initialize owner
         assert_eq!(
-            initialize_owner(deps.as_mut(), &owner_address)
+            initialize_owner(deps.as_mut(), owner_address)
                 .unwrap()
                 .attributes,
             vec![
@@ -94,7 +94,7 @@ mod tests {
         let err = transfer_ownership(
             deps.as_mut(),
             &mock_info(new_owner_address, &[]),
-            &non_owner_address,
+            non_owner_address,
         )
         .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
@@ -114,7 +114,7 @@ mod tests {
             transfer_ownership(
                 deps.as_mut(),
                 &mock_info(owner_address, &[]),
-                &new_owner_address,
+                new_owner_address,
             )
             .unwrap()
             .attributes,

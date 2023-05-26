@@ -83,7 +83,7 @@ impl RequestData {
     /// Keccek256 hash of the request data
     pub fn hash(&self) -> StdResult<Binary> {
         let mut hasher = Keccak256::new();
-        hasher.update(to_binary(&self)?.to_vec());
+        hasher.update(&to_binary(&self)?);
         Ok(Binary::from(hasher.finalize().to_vec()))
     }
 }
@@ -282,7 +282,6 @@ impl<'a, S: Status> RequestManager<'a, S> {
             .nonce
             .prefix(nonce.to_be_bytes().to_vec())
             .range(deps.storage, None, None, Order::Ascending)
-            .into_iter()
             .next()
             .ok_or(StdError::not_found(format!("Request with nonce `{nonce}`")))?
     }
@@ -462,7 +461,7 @@ mod tests {
         }"#;
 
         // strip all spaces & newlines
-        let request_string = request_string.replace(" ", "").replace("\n", "");
+        let request_string = request_string.replace([' ', '\n'], "");
 
         let mut hasher = Keccak256::new();
         hasher.update(request_string.as_bytes());
@@ -568,7 +567,7 @@ mod tests {
                 .clone()
                 .into_iter()
                 .filter(|r| r.request.status == TestRequestStatus::Approved)
-                .take(1 as usize)
+                .take(1_usize)
                 .collect::<Vec<_>>()
         );
 
