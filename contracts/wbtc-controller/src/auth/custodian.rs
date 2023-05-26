@@ -58,21 +58,14 @@ mod tests {
         initialize_owner(deps.as_mut(), owner).unwrap();
 
         // check before set will fail
-        assert_eq!(
-            is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap(),
-            false
-        );
+        assert!(!is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap());
 
         let err = get_custodian(deps.as_ref()).unwrap_err();
         assert_eq!(err, StdError::not_found("Custodian"));
 
         // set custodian by non owner should fail
-        let err = set_custodian(
-            deps.as_mut(),
-            &mock_info(non_owner, &[]),
-            custodian_address,
-        )
-        .unwrap_err();
+        let err = set_custodian(deps.as_mut(), &mock_info(non_owner, &[]), custodian_address)
+            .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // set custodian
@@ -82,19 +75,13 @@ mod tests {
                 .attributes,
             vec![
                 attr("action", "set_custodian"),
-                attr("address", custodian_address.clone())
+                attr("address", custodian_address)
             ]
         );
 
         // check after set will pass
         assert_eq!(get_custodian(deps.as_ref()).unwrap(), custodian_address);
-        assert_eq!(
-            is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap(),
-            true
-        );
-        assert_eq!(
-            is_custodian(deps.as_ref(), &Addr::unchecked(non_custodian_address)).unwrap(),
-            false
-        );
+        assert!(is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap());
+        assert!(!is_custodian(deps.as_ref(), &Addr::unchecked(non_custodian_address)).unwrap());
     }
 }

@@ -670,9 +670,7 @@ fn test_token_pause_and_unpause_transfer() {
 
     // approve mint request
     wbtc.execute(
-        &ExecuteMsg::ApproveMintRequest {
-            request_hash,
-        },
+        &ExecuteMsg::ApproveMintRequest { request_hash },
         &[],
         custodian,
     )
@@ -738,7 +736,7 @@ fn test_token_pause_and_unpause_transfer() {
         .query::<IsPausedResponse>(&QueryMsg::IsPaused {})
         .unwrap();
 
-    assert_eq!(is_paused, true);
+    assert!(is_paused);
 
     // try to send tokens to other account
     let res = bank.send(
@@ -788,7 +786,7 @@ fn test_token_pause_and_unpause_transfer() {
         .query::<IsPausedResponse>(&QueryMsg::IsPaused {})
         .unwrap();
 
-    assert_eq!(is_paused, false);
+    assert!(!is_paused);
 
     // send tokens to other account
     bank.send(

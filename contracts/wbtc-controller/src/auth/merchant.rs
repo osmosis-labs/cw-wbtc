@@ -88,18 +88,9 @@ mod tests {
         // setup
         owner::initialize_owner(deps.as_mut(), owner).unwrap();
 
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(owner)).unwrap(),
-            false
-        );
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
-            false
-        );
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
-            false
-        );
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(owner)).unwrap(),);
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),);
 
         // add merchant by non owner should fail
         let err = add_merchant(
@@ -121,14 +112,8 @@ mod tests {
             ]
         );
 
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
-            true
-        );
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
-            false
-        );
+        assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),);
 
         // add merchant 2
         assert_eq!(
@@ -141,14 +126,8 @@ mod tests {
             ]
         );
 
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
-            true
-        );
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
-            true
-        );
+        assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
+        assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),);
 
         // remove merchant by non_owner should fail
         let err = remove_merchant(
@@ -170,14 +149,8 @@ mod tests {
             ]
         );
 
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),
-            false
-        );
-        assert_eq!(
-            is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),
-            true
-        );
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
+        assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),);
     }
 
     #[test]

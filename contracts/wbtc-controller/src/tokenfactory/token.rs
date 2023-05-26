@@ -175,7 +175,7 @@ mod tests {
         merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
 
         // default status is not paused
-        assert_eq!(is_paused(deps.as_ref()).unwrap(), false);
+        assert!(!is_paused(deps.as_ref()).unwrap());
 
         assert_eq!(
             pause(deps.as_mut(), &mock_info(custodian, &[])).unwrap_err(),
@@ -193,7 +193,7 @@ mod tests {
         );
 
         // status is paused
-        assert_eq!(is_paused(deps.as_ref()).unwrap(), true);
+        assert!(is_paused(deps.as_ref()).unwrap());
 
         assert_eq!(
             unpause(deps.as_mut(), &mock_info(custodian, &[])).unwrap_err(),
@@ -211,6 +211,6 @@ mod tests {
         );
 
         // status is not paused
-        assert_eq!(is_paused(deps.as_ref()).unwrap(), false);
+        assert!(!is_paused(deps.as_ref()).unwrap());
     }
 }

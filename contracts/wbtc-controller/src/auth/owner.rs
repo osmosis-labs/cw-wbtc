@@ -60,10 +60,7 @@ mod tests {
 
         // check before set will fail
 
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),
-            false
-        );
+        assert!(!is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),);
 
         let err = get_owner(deps.as_ref()).unwrap_err();
         assert_eq!(err, StdError::not_found("Owner"));
@@ -81,14 +78,8 @@ mod tests {
 
         // check after set will pass
         assert_eq!(get_owner(deps.as_ref()).unwrap(), owner_address);
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),
-            true
-        );
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),
-            false
-        );
+        assert!(is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),);
+        assert!(!is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),);
 
         // transfer owner right should fail if not called by owner
         let err = transfer_ownership(
@@ -100,14 +91,8 @@ mod tests {
         assert_eq!(err, ContractError::Unauthorized {});
 
         assert_eq!(get_owner(deps.as_ref()).unwrap(), owner_address);
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),
-            true
-        );
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),
-            false
-        );
+        assert!(is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),);
+        assert!(!is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),);
 
         // transfer owner right should pass if called by owner
         assert_eq!(
@@ -125,17 +110,8 @@ mod tests {
         );
 
         assert_eq!(get_owner(deps.as_ref()).unwrap(), new_owner_address);
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),
-            false
-        );
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),
-            false
-        );
-        assert_eq!(
-            is_owner(deps.as_ref(), &Addr::unchecked(new_owner_address)).unwrap(),
-            true
-        );
+        assert!(!is_owner(deps.as_ref(), &Addr::unchecked(owner_address)).unwrap(),);
+        assert!(!is_owner(deps.as_ref(), &Addr::unchecked(non_owner_address)).unwrap(),);
+        assert!(is_owner(deps.as_ref(), &Addr::unchecked(new_owner_address)).unwrap(),);
     }
 }
