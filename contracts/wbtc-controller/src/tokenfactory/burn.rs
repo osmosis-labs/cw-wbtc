@@ -98,14 +98,12 @@ pub fn burn(
     // record burn request
     let (request_hash, request) = burn_requests().issue(
         deps.branch(),
+        env.clone(),
         info.sender.clone(),
         amount,
         // tx_id will later be confirmed by the custodian
         TxId::Pending,
         deposit_address,
-        env.block,
-        env.transaction,
-        env.contract.clone(),
     )?;
 
     // construct attributes

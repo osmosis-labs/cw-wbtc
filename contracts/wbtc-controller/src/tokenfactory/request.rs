@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut,
+    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut, Env,
     Order, StdError, StdResult, TransactionInfo, Uint128,
 };
 
@@ -196,14 +196,18 @@ impl<'a, S: Status> RequestManager<'a, S> {
     pub fn issue(
         &self,
         mut deps: DepsMut,
+        env: Env,
         requester: Addr,
         amount: Uint128,
         tx_id: TxId,
         deposit_address: String,
-        block: BlockInfo,
-        transaction: Option<TransactionInfo>,
-        contract: ContractInfo,
     ) -> Result<(String, Request<S>), ContractError> {
+        let Env {
+            block,
+            transaction,
+            contract,
+        } = env;
+
         let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
             data: RequestData {

@@ -91,13 +91,11 @@ pub fn issue_mint_request(
 
     let (request_hash, request) = mint_requests().issue(
         deps,
+        env,
         info.sender,
         amount,
         TxId::Confirmed(tx_id),
         deposit_address,
-        env.block,
-        env.transaction,
-        env.contract,
     )?;
 
     let mut attrs = action_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
