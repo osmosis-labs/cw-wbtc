@@ -173,7 +173,7 @@ pub fn approve_mint_request(
         .data;
 
     // construct event attributes
-    let mut attrs = action_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request_data));
+    let mut attrs = action_attrs("approve_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     let RequestData {
