@@ -17,15 +17,15 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{Request, RequestData, RequestManager, RequestWithHash, Status, TxId},
+    request::{Request, RequestData, RequestManager, RequestWithHash, Status},
     token,
 };
 
 /// Burn request status.
 #[cw_serde]
 pub enum BurnRequestStatus {
-    /// The burn request has been executed. This is the initial status.
-    Executed,
+    /// The burn request has been executed and pending for tx_id confirmation. This is the initial status.
+    Pending,
     /// The burn request has been confirmed by the custodian.
     Confirmed,
 }
@@ -37,7 +37,7 @@ pub type BurnRequestWithHash = RequestWithHash<BurnRequestStatus>;
 impl Display for BurnRequestStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BurnRequestStatus::Executed => write!(f, "Executed"),
+            BurnRequestStatus::Pending => write!(f, "Pending"),
             BurnRequestStatus::Confirmed => write!(f, "Confirmed"),
         }
     }
@@ -49,7 +49,7 @@ impl Display for BurnRequestStatus {
 /// - `Executed` is the only updatable status.
 impl Status for BurnRequestStatus {
     fn initial() -> Self {
-        Self::Executed
+        Self::Pending
     }
 
     fn is_updatable(&self) -> bool {
@@ -102,7 +102,7 @@ pub fn burn(
         info.sender.clone(),
         amount,
         // tx_id will later be confirmed by the custodian
-        TxId::Pending,
+        None,
         deposit_address,
     )?;
 
@@ -221,7 +221,7 @@ mod tests {
         tokenfactory::{
             burn::{burn_requests, confirm_burn_request, set_min_burn_amount, BurnRequestStatus},
             deposit_address,
-            request::{RequestData, TxId},
+            request::RequestData,
             token,
         },
         ContractError,
@@ -310,14 +310,14 @@ mod tests {
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
-        assert_eq!(request.status, BurnRequestStatus::Executed);
+        assert_eq!(request.status, BurnRequestStatus::Pending);
 
         assert_eq!(
             request.data,
             RequestData {
                 requester: Addr::unchecked(merchant),
                 amount,
-                tx_id: TxId::Pending,
+                tx_id: None,
                 deposit_address: deposit_address.to_string(),
                 block: env.block.clone(),
                 transaction: env.transaction.clone(),
@@ -403,8 +403,8 @@ mod tests {
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
-        assert_eq!(request_before.status, BurnRequestStatus::Executed);
-        assert_eq!(request_before.data.tx_id, TxId::Pending);
+        assert_eq!(request_before.status, BurnRequestStatus::Pending);
+        assert_eq!(request_before.data.tx_id, None);
 
         confirm_burn_request(
             deps.as_mut(),
@@ -420,10 +420,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(request_after.status, BurnRequestStatus::Confirmed);
-        assert_eq!(
-            request_after.data.tx_id,
-            TxId::Confirmed("btc_tx_id".to_string())
-        );
+        assert_eq!(request_after.data.tx_id, Some("btc_tx_id".to_string()));
     }
 
     #[test]

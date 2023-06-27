@@ -15,7 +15,7 @@ use cosmwasm_std::{
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::{
-    request::{Request, RequestManager, RequestWithHash, Status, TxId},
+    request::{Request, RequestManager, RequestWithHash, Status},
     token,
 };
 
@@ -94,7 +94,8 @@ pub fn issue_mint_request(
         env,
         info.sender,
         amount,
-        TxId::Confirmed(tx_id),
+        Some(tx_id),
+        // TODO: validate deposit address that it is already set
         deposit_address,
     )?;
 
@@ -321,7 +322,7 @@ mod tests {
             ContractError::Unauthorized {}
         );
 
-        let hash_on_nonce_0 = "cC2AqyP3sgYXmlq+QfOZ+VWucw9HVj/tw2CkqPE6h9E=";
+        let hash_on_nonce_0 = "5u8TbLWA7MKMZa6ZpGXTCLbomCnAl0Bj8JxIlLgVjpg=";
 
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
@@ -330,10 +331,6 @@ mod tests {
                 .add_attribute("requester", merchant)
                 .add_attribute("amount", "100000000")
                 .add_attribute(
-                    "tx_id",
-                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
-                )
-                .add_attribute(
                     "deposit_address",
                     "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
                 )
@@ -341,6 +338,10 @@ mod tests {
                 .add_attribute("timestamp", "1689069540000000000")
                 .add_attribute("transaction_index", "1")
                 .add_attribute("nonce", "0")
+                .add_attribute(
+                    "tx_id",
+                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
+                )
                 .add_attribute("request_hash", hash_on_nonce_0)
         );
 

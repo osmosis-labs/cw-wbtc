@@ -22,7 +22,7 @@ use wbtc_controller::{
         GetTokenDenomResponse, InstantiateMsg, IsPausedResponse, ListBurnRequestsResponse,
         ListMintRequestsResponse, QueryMsg,
     },
-    BurnRequestStatus, MintRequestStatus, TxId,
+    BurnRequestStatus, MintRequestStatus,
 };
 
 pub struct WBTC<'a> {
@@ -443,8 +443,8 @@ fn test_mint_and_burn() {
 
     assert_eq!(req_by_hash, req.request);
     assert_eq!(res_by_nonce, req.request);
-    assert_eq!(req.request.status, BurnRequestStatus::Executed);
-    assert_eq!(req.request.data.tx_id, TxId::Pending);
+    assert_eq!(req.request.status, BurnRequestStatus::Pending);
+    assert_eq!(req.request.data.tx_id, None);
 
     // check supply
     assert_eq!(
@@ -490,7 +490,7 @@ fn test_mint_and_burn() {
         .request
         .data
         .tx_id,
-        TxId::Confirmed("tx_id_2".to_string())
+        Some("tx_id_2".to_string())
     );
 
     // set min burn amount

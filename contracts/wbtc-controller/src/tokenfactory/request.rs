@@ -29,28 +29,6 @@ pub trait Status:
     fn is_updatable(&self) -> bool;
 }
 
-/// `TxId` is a wrapper around transaction id.
-/// This is used to differentiate between pending and confirmed transactions.
-#[cw_serde]
-pub enum TxId {
-    /// Pending transaction, not yet confirmed
-    Pending,
-
-    /// Confirmed transaction
-    Confirmed(String),
-}
-
-/// `Display` implementation for `TxId`
-/// mainly used for attribute contruction purpose
-impl std::fmt::Display for TxId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TxId::Pending => write!(f, "<pending>"),
-            TxId::Confirmed(tx_id) => write!(f, "{}", tx_id),
-        }
-    }
-}
-
 /// `RequestData` contains common data for any type of request.
 #[cw_serde]
 pub struct RequestData {
@@ -61,7 +39,7 @@ pub struct RequestData {
     pub amount: Uint128,
 
     /// BTC transaction id
-    pub tx_id: TxId,
+    pub tx_id: Option<String>,
 
     /// Deposit address to send BTC to
     pub deposit_address: String,
@@ -102,10 +80,9 @@ impl From<&RequestData> for Vec<Attribute> {
             // don't include contract info in attributes since it's already exists as `_contract_address` by default
             contract: _,
         } = data;
-        vec![
+        let mut attrs = vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
-            attr("tx_id", tx_id.to_string()),
             attr("deposit_address", deposit_address.as_str()),
             attr("block_height", block.height.to_string()),
             attr("timestamp", block.time.nanos().to_string()),
@@ -117,7 +94,14 @@ impl From<&RequestData> for Vec<Attribute> {
                     .unwrap_or("none".to_string()),
             ),
             attr("nonce", nonce.to_string()),
-        ]
+        ];
+
+        // add tx_id if it exists
+        if let Some(tx_id) = tx_id {
+            attrs.push(attr("tx_id", tx_id.as_str()));
+        }
+
+        attrs
     }
 }
 
@@ -199,7 +183,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
         env: Env,
         requester: Addr,
         amount: Uint128,
-        tx_id: TxId,
+        tx_id: Option<String>,
         deposit_address: String,
     ) -> Result<(String, Request<S>), ContractError> {
         let Env {
@@ -268,7 +252,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> StdResult<Request<S>> {
         let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
-        request.data.tx_id = TxId::Confirmed(tx_id);
+        request.data.tx_id = Some(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
 
@@ -421,7 +405,7 @@ mod tests {
             data: RequestData {
                 requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
                 amount: Uint128::new(100),
-                tx_id: TxId::Confirmed(
+                tx_id: Some(
                     "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
                 ),
                 deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
@@ -446,9 +430,7 @@ mod tests {
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",
             "amount": "100",
-            "tx_id": {
-                "confirmed": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
-            },
+            "tx_id": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf",
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
             "block": {
                 "height": 1,
@@ -481,7 +463,7 @@ mod tests {
         let base_request_data = RequestData {
             requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
             amount: Uint128::new(100),
-            tx_id: TxId::Confirmed(
+            tx_id: Some(
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
             ),
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
