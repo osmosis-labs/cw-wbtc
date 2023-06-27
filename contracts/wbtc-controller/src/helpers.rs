@@ -24,12 +24,12 @@ pub mod test_helpers {
     pub fn setup_contract(
         mut deps: DepsMut,
         contract_address: &str,
-        owner: &str,
+        governor: &str,
         subdenom: &str,
     ) -> Result<String, ContractError> {
-        let info = mock_info(owner, &[]);
+        let info = mock_info(governor, &[]);
         let msg = InstantiateMsg {
-            owner: info.sender.to_string(),
+            governor: info.sender.to_string(),
             subdenom: subdenom.to_string(),
         };
 

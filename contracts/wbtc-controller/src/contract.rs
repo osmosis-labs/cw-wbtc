@@ -9,14 +9,14 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
     MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
 };
 
-use crate::auth::{custodian, merchant, owner};
+use crate::auth::{custodian, governor, merchant};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse,
-    GetMintRequestsCountResponse, GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg,
-    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, IsPausedResponse,
+    GetGovernorResponse, GetMinBurnAmountResponse, GetMintRequestByHashResponse,
+    GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetTokenDenomResponse,
+    InstantiateMsg, IsCustodianResponse, IsGovernorResponse, IsMerchantResponse, IsPausedResponse,
     ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
@@ -40,7 +40,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // Initialize the admin, no auth is required only at contract instantiation
-    owner::initialize_owner(deps, msg.owner.as_ref())?;
+    governor::initialize_governor(deps, msg.governor.as_ref())?;
 
     // create denom
     let msg_create_denom = SubMsg::reply_on_success(
@@ -54,7 +54,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_submessage(msg_create_denom)
         .add_attribute("action", "instantiate")
-        .add_attribute("owner", info.sender))
+        .add_attribute("governor", info.sender))
 }
 
 /// Handling contract execution
@@ -91,9 +91,9 @@ pub fn execute(
         ExecuteMsg::SetMinBurnAmount { amount } => burn::set_min_burn_amount(deps, &info, amount),
 
         // === auth ===
-        ExecuteMsg::TransferOwnership { new_owner_address } => {
-            owner::transfer_ownership(deps, &info, &new_owner_address)
-        }
+        ExecuteMsg::TransferGovernorship {
+            new_governor_address,
+        } => governor::transfer_governorship(deps, &info, &new_governor_address),
         ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
         ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
         ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
@@ -198,11 +198,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
             address: custodian::get_custodian(deps)?,
         }),
-        QueryMsg::GetOwner {} => to_binary(&GetOwnerResponse {
-            address: owner::get_owner(deps)?,
+        QueryMsg::GetGovernor {} => to_binary(&GetGovernorResponse {
+            address: governor::get_governor(deps)?,
         }),
-        QueryMsg::IsOwner { address } => to_binary(&IsOwnerResponse {
-            is_owner: owner::is_owner(deps, &deps.api.addr_validate(&address)?)?,
+        QueryMsg::IsGovernor { address } => to_binary(&IsGovernorResponse {
+            is_governor: governor::is_governor(deps, &deps.api.addr_validate(&address)?)?,
         }),
 
         // == deposit address ==

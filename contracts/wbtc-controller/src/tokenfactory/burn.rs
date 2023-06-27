@@ -217,7 +217,7 @@ mod tests {
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
     use crate::{
-        auth::{custodian, merchant, owner},
+        auth::{custodian, governor, merchant},
         tokenfactory::{
             burn::{burn_requests, confirm_burn_request, set_min_burn_amount, BurnRequestStatus},
             deposit_address,
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_burn() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -241,9 +241,9 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -320,7 +320,7 @@ mod tests {
 
         // burn fail with unauthorized if not merchant
         assert_eq!(
-            burn_fixture(deps.as_mut(), mock_info(owner, &[])).unwrap_err(),
+            burn_fixture(deps.as_mut(), mock_info(governor, &[])).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_confirm_burn() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -342,9 +342,9 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -412,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_min_burn_amount() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -422,9 +422,9 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -455,7 +455,7 @@ mod tests {
         // set min burn amount
         // only custodian can set
         assert_eq!(
-            set_min_burn_amount(deps.as_mut(), &mock_info(owner, &[]), min_burn_amount)
+            set_min_burn_amount(deps.as_mut(), &mock_info(governor, &[]), min_burn_amount)
                 .unwrap_err(),
             ContractError::Unauthorized {}
         );

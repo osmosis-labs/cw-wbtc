@@ -9,10 +9,10 @@ use crate::tokenfactory::{
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// Address of the owner of the contract.
-    /// The owner can set the custodian and add/remove merchants.
-    /// Ownership can be transferred to another address.
-    pub owner: String,
+    /// Address of the governor of the contract.
+    /// The governor can set the custodian and add/remove merchants.
+    /// Governorship can be transferred to another address.
+    pub governor: String,
 
     /// Subdenom of the token that will be created on behalf of this contract
     /// The resulting denom will be tokenfactory denom: "factory/<contract_address>/<subdenom>"
@@ -21,8 +21,8 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    /// Transfer ownership of the contract to another address.
-    TransferOwnership { new_owner_address: String },
+    /// Transfer governorship of the contract to another address.
+    TransferGovernorship { new_governor_address: String },
 
     /// Set custodian address.
     SetCustodian { address: String },
@@ -75,13 +75,13 @@ pub enum ExecuteMsg {
     /// Set minimum burn amount. Message sender must be the Custodian.
     SetMinBurnAmount { amount: Uint128 },
 
-    /// Set denom metadata. Message sender must be the owner.
+    /// Set denom metadata. Message sender must be the governor.
     SetDenomMetadata { metadata: Metadata },
 
-    /// Pause contract. Message sender must be the owner.
+    /// Pause contract. Message sender must be the governor.
     Pause {},
 
-    /// Unpause contract. Message sender must be the owner.
+    /// Unpause contract. Message sender must be the governor.
     Unpause {},
 }
 
@@ -180,13 +180,13 @@ pub enum QueryMsg {
     #[returns(GetCustodianResponse)]
     GetCustodian {},
 
-    /// Get owner address.
-    #[returns(GetOwnerResponse)]
-    GetOwner {},
+    /// Get governor address.
+    #[returns(GetGovernorResponse)]
+    GetGovernor {},
 
-    /// Check if the specified address is the owner.
-    #[returns(IsOwnerResponse)]
-    IsOwner { address: String },
+    /// Check if the specified address is the governor.
+    #[returns(IsGovernorResponse)]
+    IsGovernor { address: String },
 
     /// Get custodian deposit address of the specified merchant.
     #[returns(GetCustodianDepositAddressResponse)]
@@ -269,13 +269,13 @@ pub struct GetCustodianResponse {
 }
 
 #[cw_serde]
-pub struct GetOwnerResponse {
+pub struct GetGovernorResponse {
     pub address: Addr,
 }
 
 #[cw_serde]
-pub struct IsOwnerResponse {
-    pub is_owner: bool,
+pub struct IsGovernorResponse {
+    pub is_governor: bool,
 }
 
 #[cw_serde]

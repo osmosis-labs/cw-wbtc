@@ -126,12 +126,12 @@ mod tests {
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
 
-    use crate::auth::{custodian, merchant, owner};
+    use crate::auth::{custodian, governor, merchant};
 
     #[test]
     fn test_custodian_deposit_address_per_merchant() {
         let mut deps = mock_dependencies();
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
         let custodian = "osmo1custodian";
         let merchant_1 = "osmo1merchant1";
         let merchant_2 = "osmo1merchant2";
@@ -139,10 +139,10 @@ mod tests {
         let deposit_address_2 = "bc1q35rayrk92pvwamwm4n2hsd3epez2g2tqcqa0fx";
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_1).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_2).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_2).unwrap();
 
         // no custodian deposit address set yet
         assert_eq!(
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn test_merchant_deposit_address() {
         let mut deps = mock_dependencies();
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
         let custodian = "osmo1custodian";
         let merchant_1 = "osmo1merchant1";
         let merchant_2 = "osmo1merchant2";
@@ -209,10 +209,10 @@ mod tests {
         let deposit_address_2 = "bc1q35rayrk92pvwamwm4n2hsd3epez2g2tqcqa0fx";
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_1).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant_2).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_1).unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_2).unwrap();
 
         // no merchant deposit address set yet
         assert_eq!(
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(
             set_merchant_deposit_address(
                 deps.as_mut(),
-                &mock_info(owner, &[]),
+                &mock_info(governor, &[]),
                 deposit_address_1,
             )
             .unwrap_err(),

@@ -3,12 +3,12 @@ use cosmwasm_std::{ensure, Addr, Deps};
 use crate::ContractError;
 
 pub mod custodian;
+pub mod governor;
 pub mod merchant;
-pub mod owner;
 
 #[derive(Clone, Copy)]
 pub enum Role {
-    Owner,
+    Governor,
     Merchant,
     Custodian,
 }
@@ -16,7 +16,7 @@ pub enum Role {
 pub fn allow_only(roles: &[Role], address: &Addr, deps: Deps) -> Result<(), ContractError> {
     for role in roles {
         let is_authorized = match role {
-            Role::Owner => owner::is_owner(deps, address)?,
+            Role::Governor => governor::is_governor(deps, address)?,
             Role::Merchant => merchant::is_merchant(deps, address)?,
             Role::Custodian => custodian::is_custodian(deps, address)?,
         };
@@ -33,20 +33,20 @@ mod tests {
     #[test]
     fn test_allow_only() {
         let mut deps = mock_dependencies();
-        let owner_address = "osmo1owner";
+        let governor_address = "osmo1governor";
         let merchant_address = "osmo1merchant";
         let custodian_address = "osmo1custodian";
-        let non_owner_address = "osmo1nonowner";
+        let non_governor_address = "osmo1nongovernor";
         let non_merchant_address = "osmo1nonmerchant";
         let non_custodian_address = "osmo1noncustodian";
 
-        // initialize owner
-        owner::initialize_owner(deps.as_mut(), owner_address).unwrap();
+        // initialize governor
+        governor::initialize_governor(deps.as_mut(), governor_address).unwrap();
 
         // initialize merchant
         merchant::add_merchant(
             deps.as_mut(),
-            &mock_info(owner_address, &[]),
+            &mock_info(governor_address, &[]),
             merchant_address,
         )
         .unwrap();
@@ -54,15 +54,15 @@ mod tests {
         // initialize custodian
         custodian::set_custodian(
             deps.as_mut(),
-            &mock_info(owner_address, &[]),
+            &mock_info(governor_address, &[]),
             custodian_address,
         )
         .unwrap();
 
         // no error when address has the role
         allow_only(
-            &[Role::Owner],
-            &Addr::unchecked(owner_address),
+            &[Role::Governor],
+            &Addr::unchecked(governor_address),
             deps.as_ref(),
         )
         .unwrap();
@@ -83,8 +83,8 @@ mod tests {
 
         // error unauthorized when address does not have the role
         let err = allow_only(
-            &[Role::Owner],
-            &Addr::unchecked(non_owner_address),
+            &[Role::Governor],
+            &Addr::unchecked(non_governor_address),
             deps.as_ref(),
         )
         .unwrap_err();
@@ -109,8 +109,8 @@ mod tests {
 
         // error unauthorized when address does not have any of the roles
         let err = allow_only(
-            &[Role::Owner, Role::Merchant],
-            &Addr::unchecked(owner_address),
+            &[Role::Governor, Role::Merchant],
+            &Addr::unchecked(governor_address),
             deps.as_ref(),
         );
 
@@ -118,12 +118,16 @@ mod tests {
 
         // no error when address has all of the roles
 
-        // add owner as merchant
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner_address, &[]), owner_address)
-            .unwrap();
+        // add governor as merchant
+        merchant::add_merchant(
+            deps.as_mut(),
+            &mock_info(governor_address, &[]),
+            governor_address,
+        )
+        .unwrap();
         allow_only(
-            &[Role::Owner, Role::Merchant],
-            &Addr::unchecked(owner_address),
+            &[Role::Governor, Role::Merchant],
+            &Addr::unchecked(governor_address),
             deps.as_ref(),
         )
         .unwrap();

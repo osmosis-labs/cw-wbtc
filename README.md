@@ -8,7 +8,7 @@ The original WBTC contracts is implemented with 4 separated contracts – `contr
 
 ### Token Implementation
 
-The origial WBTC is implemented as a ERC20 token which has been de facto standard on Ethereum for implementing token. However, on Osmosis, we can implement the token as native token through [`x/tokenfactory`](https://github.com/osmosis-labs/osmosis/tree/main/x/tokenfactory) module which reduce discrepancies between the native token and contract-based token like ERC20. 
+The origial WBTC is implemented as a ERC20 token which has been de facto standard on Ethereum for implementing token. However, on Osmosis, we can implement the token as native token through [`x/tokenfactory`](https://github.com/osmosis-labs/osmosis/tree/main/x/tokenfactory) module which reduce discrepancies between the native token and contract-based token like ERC20.
 
 This is what happens on contract initialization:
 ```mermaid
@@ -31,7 +31,7 @@ Thus it does the job of `token` and `factory` contract in the original WBTC cont
 
 ### Membership and Controller
 
-Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of merchants, custodian and the owner who can update the membership in the contract's state (TBD). Even if the owner is a multisig or a DAO, it still can be referenced as a single address in the contract.
+Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of merchants, custodian and the governor who can update the membership in the contract's state (TBD). Even if the governor is a multisig or a DAO, it still can be referenced as a single address in the contract.
 
 For the original [`Controller.sol`](https://github.com/WrappedBTC/bitcoin-token-smart-contracts/blob/master/ethereumV2/contracts/controller/Controller.sol) contract, it is there only to wire all the contracts together which is not necessary since we only have single contract. So we can just ignore it.
 
@@ -103,14 +103,14 @@ beaker console --network local
 Setup console environment
 ```js
 wbtc = contract['wbtc-controller']
-owner = wbtc.signer(test1)
+governor = wbtc.signer(test1)
 custodian = wbtc.signer(test2)
 merchants = [wbtc.signer(test3), wbtc.signer(test4)]
 ```
 
 Check if the roles are set correctly
 ```js
-await wbtc.isOwner({ address: test1.address }) // => { is_owner: true }
+await wbtc.isGovernor({ address: test1.address }) // => { is_governor: true }
 await wbtc.isCustodian({ address: test2.address }) // => { is_custodian: true }
 await wbtc.isMerchant({ address: test3.address }) // => { is_merchant: true }
 await wbtc.isMerchant({ address: test4.address }) // => { is_merchant: true }
@@ -183,4 +183,3 @@ console.dir(result.logs[0].events, {depth: null})
 Find more available methods in [`ts/sdk/types/contracts/WbtcController.client.d.ts`](./ts/sdk/types/contracts/WbtcController.client.d.ts). As you might notice, the methods are generated from the contract's schema and could be imported as javascript/typescript module.
 
 Find out how to use console in [Beaker's readme](https://github.com/osmosis-labs/beaker#console)
-
