@@ -97,21 +97,29 @@ mod tests {
     use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
     use crate::{
-        auth::{custodian, governor, merchant},
+        auth::{custodian, governor, member_manager, merchant},
         ContractError,
     };
 
     #[test]
     fn test_only_governor_can_set_denom_metadata() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         let metadata = Metadata {
             description: "description".to_string(),
@@ -165,14 +173,22 @@ mod tests {
     #[test]
     fn test_only_governor_can_pause_and_unpause() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // default status is not paused
         assert!(!is_paused(deps.as_ref()).unwrap());

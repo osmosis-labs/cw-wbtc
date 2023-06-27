@@ -21,7 +21,7 @@ pub fn add_merchant(
     info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
     MERCHANTS.save(deps.storage, deps.api.addr_validate(address)?, &())?;
 
@@ -35,7 +35,7 @@ pub fn remove_merchant(
     info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
     MERCHANTS.remove(deps.storage, deps.api.addr_validate(address)?);
 
@@ -72,7 +72,7 @@ pub fn list_merchants(
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::governor;
+    use crate::auth::{governor, member_manager};
 
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
@@ -81,12 +81,19 @@ mod tests {
     fn test_manage_merchant() {
         let mut deps = mock_dependencies();
         let governor = "osmo1governor";
-        let non_governor = "osmo1nongovernor";
+        let member_manager = "osmo1membermanager";
+        let non_member_manager = "osmo1nonmembermanager";
         let merchant_address_1 = "osmo1merchant1";
         let merchant_address_2 = "osmo1merchant2";
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
         assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(governor)).unwrap(),);
         assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
@@ -95,7 +102,7 @@ mod tests {
         // add merchant by non governor should fail
         let err = add_merchant(
             deps.as_mut(),
-            &mock_info(non_governor, &[]),
+            &mock_info(non_member_manager, &[]),
             merchant_address_1,
         )
         .unwrap_err();
@@ -103,9 +110,13 @@ mod tests {
 
         // add merchant 1
         assert_eq!(
-            add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_address_1)
-                .unwrap()
-                .attributes,
+            add_merchant(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                merchant_address_1
+            )
+            .unwrap()
+            .attributes,
             vec![
                 attr("action", "add_merchant"),
                 attr("address", merchant_address_1)
@@ -117,9 +128,13 @@ mod tests {
 
         // add merchant 2
         assert_eq!(
-            add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_address_2)
-                .unwrap()
-                .attributes,
+            add_merchant(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                merchant_address_2
+            )
+            .unwrap()
+            .attributes,
             vec![
                 attr("action", "add_merchant"),
                 attr("address", merchant_address_2)
@@ -132,7 +147,7 @@ mod tests {
         // remove merchant by non_governor should fail
         let err = remove_merchant(
             deps.as_mut(),
-            &mock_info(non_governor, &[]),
+            &mock_info(non_member_manager, &[]),
             merchant_address_1,
         )
         .unwrap_err();
@@ -140,9 +155,13 @@ mod tests {
 
         // remove merchant 1
         assert_eq!(
-            remove_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant_address_1)
-                .unwrap()
-                .attributes,
+            remove_merchant(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                merchant_address_1
+            )
+            .unwrap()
+            .attributes,
             vec![
                 attr("action", "remove_merchant"),
                 attr("address", merchant_address_1)
@@ -157,9 +176,16 @@ mod tests {
     fn test_list_merchants() {
         let mut deps = mock_dependencies();
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
         assert_eq!(
             list_merchants(deps.as_ref(), None, None).unwrap(),
@@ -169,7 +195,12 @@ mod tests {
         // add 200 merhants
         for i in 1..=200 {
             let merchant_address = format!("osmo1merchant{:0>3}", i);
-            add_merchant(deps.as_mut(), &mock_info(governor, &[]), &merchant_address).unwrap();
+            add_merchant(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                &merchant_address,
+            )
+            .unwrap();
         }
 
         let first_ten = (1..=10)

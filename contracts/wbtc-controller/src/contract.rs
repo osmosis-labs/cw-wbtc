@@ -9,15 +9,16 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
     MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
 };
 
-use crate::auth::{custodian, governor, merchant};
+use crate::auth::{custodian, governor, member_manager, merchant};
 use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetGovernorResponse, GetMinBurnAmountResponse, GetMintRequestByHashResponse,
-    GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetTokenDenomResponse,
-    InstantiateMsg, IsCustodianResponse, IsGovernorResponse, IsMerchantResponse, IsPausedResponse,
-    ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
+    GetGovernorResponse, GetMemberManagerResponse, GetMinBurnAmountResponse,
+    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
+    GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse, IsGovernorResponse,
+    IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse,
+    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -94,6 +95,9 @@ pub fn execute(
         ExecuteMsg::TransferGovernorship {
             new_governor_address,
         } => governor::transfer_governorship(deps, &info, &new_governor_address),
+        ExecuteMsg::SetMemberManager { address } => {
+            member_manager::set_member_manager(deps, &info, &address)
+        }
         ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
         ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
         ExecuteMsg::RemoveMerchant { address } => merchant::remove_merchant(deps, &info, &address),
@@ -191,6 +195,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }),
         QueryMsg::ListMerchants { limit, start_after } => to_binary(&ListMerchantsResponse {
             merchants: merchant::list_merchants(deps, start_after, limit)?,
+        }),
+        QueryMsg::IsMemberManager { address } => to_binary(&IsMemberManagerResponse {
+            is_member_manager: member_manager::is_member_manager(
+                deps,
+                &deps.api.addr_validate(&address)?,
+            )?,
+        }),
+        QueryMsg::GetMemberManager {} => to_binary(&GetMemberManagerResponse {
+            address: member_manager::get_member_manager(deps)?,
         }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &deps.api.addr_validate(&address)?)?,

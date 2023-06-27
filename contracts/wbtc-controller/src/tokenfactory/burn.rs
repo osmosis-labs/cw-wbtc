@@ -217,7 +217,7 @@ mod tests {
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
     use crate::{
-        auth::{custodian, governor, merchant},
+        auth::{custodian, governor, member_manager, merchant},
         tokenfactory::{
             burn::{burn_requests, confirm_burn_request, set_min_burn_amount, BurnRequestStatus},
             deposit_address,
@@ -232,6 +232,7 @@ mod tests {
     #[test]
     fn test_burn() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -242,8 +243,15 @@ mod tests {
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -333,6 +341,7 @@ mod tests {
     #[test]
     fn test_confirm_burn() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -343,8 +352,15 @@ mod tests {
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -413,6 +429,7 @@ mod tests {
     #[test]
     fn test_min_burn_amount() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -423,8 +440,15 @@ mod tests {
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),

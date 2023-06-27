@@ -15,7 +15,7 @@ pub fn set_custodian(
     info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
     CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
@@ -42,7 +42,7 @@ pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
 mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
 
-    use crate::auth::governor::initialize_governor;
+    use crate::auth::{governor::initialize_governor, member_manager};
 
     use super::*;
 
@@ -50,12 +50,20 @@ mod tests {
     fn test_manage_custodian() {
         let mut deps = mock_dependencies();
         let governor = "osmo1governor";
-        let non_governor = "osmo1nongovernor";
+        let member_manager = "osmo1membermanager";
+        let non_member_manager = "osmo1nonmembermanager";
         let custodian_address = "osmo1custodian";
         let non_custodian_address = "osmo1noncustodian";
 
         // setup
         initialize_governor(deps.as_mut(), governor).unwrap();
+
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
         // check before set will fail
         assert!(!is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap());
@@ -66,7 +74,7 @@ mod tests {
         // set custodian by non governor should fail
         let err = set_custodian(
             deps.as_mut(),
-            &mock_info(non_governor, &[]),
+            &mock_info(non_member_manager, &[]),
             custodian_address,
         )
         .unwrap_err();
@@ -74,9 +82,13 @@ mod tests {
 
         // set custodian
         assert_eq!(
-            set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian_address)
-                .unwrap()
-                .attributes,
+            set_custodian(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                custodian_address
+            )
+            .unwrap()
+            .attributes,
             vec![
                 attr("action", "set_custodian"),
                 attr("address", custodian_address)

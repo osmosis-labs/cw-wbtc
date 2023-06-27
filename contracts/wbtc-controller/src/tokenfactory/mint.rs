@@ -261,7 +261,7 @@ mod tests {
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
     use crate::{
-        auth::{custodian, governor, merchant},
+        auth::{custodian, governor, member_manager, merchant},
         contract,
         helpers::test_helpers::setup_contract,
         ContractError,
@@ -270,14 +270,22 @@ mod tests {
     #[test]
     fn test_issue_mint_request() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
             issue_mint_request(
@@ -389,6 +397,7 @@ mod tests {
     #[test]
     fn test_cancel_mint_request() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
@@ -398,9 +407,16 @@ mod tests {
 
         // setup
         setup_contract(deps.as_mut(), contract, governor, "wbtc").unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // add mint request
         let res = issue_mint_request(
@@ -455,6 +471,7 @@ mod tests {
     #[test]
     fn test_approve_mint_request() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
@@ -464,9 +481,16 @@ mod tests {
 
         // setup
         let denom = setup_contract(deps.as_mut(), contract, governor, "wbtc").unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // add mint request
         let res = issue_mint_request(
@@ -563,6 +587,7 @@ mod tests {
     #[test]
     fn test_reject_mint_request() {
         let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
@@ -583,8 +608,16 @@ mod tests {
         )
         .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(governor, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(governor, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // add mint request
         let res = issue_mint_request(

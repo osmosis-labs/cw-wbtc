@@ -236,8 +236,9 @@ fn test_mint_and_burn() {
         .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 4)
         .unwrap();
     let governor = &accs[0];
-    let custodian = &accs[1];
-    let merchant = &accs[2];
+    let member_manager = &accs[1];
+    let custodian = &accs[2];
+    let merchant = &accs[3];
 
     let wbtc = WBTC::deploy(
         &app,
@@ -269,13 +270,23 @@ fn test_mint_and_burn() {
         "0"
     );
 
+    // set member manager
+    wbtc.execute(
+        &ExecuteMsg::SetMemberManager {
+            address: member_manager.address(),
+        },
+        &[],
+        governor,
+    )
+    .unwrap();
+
     // set custodian
     wbtc.execute(
         &ExecuteMsg::SetCustodian {
             address: custodian.address(),
         },
         &[],
-        governor,
+        member_manager,
     )
     .unwrap();
 
@@ -285,7 +296,7 @@ fn test_mint_and_burn() {
             address: merchant.address(),
         },
         &[],
-        governor,
+        member_manager,
     )
     .unwrap();
 
@@ -581,9 +592,10 @@ fn test_token_pause_and_unpause_transfer() {
         .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 5)
         .unwrap();
     let governor = &accs[0];
-    let custodian = &accs[1];
-    let merchant = &accs[2];
-    let other = &accs[3];
+    let member_manager = &accs[1];
+    let custodian = &accs[2];
+    let merchant = &accs[3];
+    let other = &accs[4];
 
     let wbtc = WBTC::deploy(
         &app,
@@ -601,13 +613,23 @@ fn test_token_pause_and_unpause_transfer() {
         .query::<GetTokenDenomResponse>(&QueryMsg::GetTokenDenom {})
         .unwrap();
 
+    // set member manager
+    wbtc.execute(
+        &ExecuteMsg::SetMemberManager {
+            address: member_manager.address(),
+        },
+        &[],
+        governor,
+    )
+    .unwrap();
+
     // set custodian
     wbtc.execute(
         &ExecuteMsg::SetCustodian {
             address: custodian.address(),
         },
         &[],
-        governor,
+        member_manager,
     )
     .unwrap();
 
@@ -617,7 +639,7 @@ fn test_token_pause_and_unpause_transfer() {
             address: merchant.address(),
         },
         &[],
-        governor,
+        member_manager,
     )
     .unwrap();
 
