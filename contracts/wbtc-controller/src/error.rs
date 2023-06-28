@@ -20,6 +20,9 @@ pub enum ContractError {
     #[error("Custodian deposit address not found for merchant {merchant}")]
     CustodianDepositAddressNotFound { merchant: String },
 
+    #[error("Address `{address}` is already added as merchant")]
+    DuplicatedMerchant { address: String },
+
     #[error("Token transfer is paused")]
     TokenTransferPaused {},
 

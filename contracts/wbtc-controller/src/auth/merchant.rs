@@ -1,5 +1,7 @@
 /// `merchant` module provides functionality to manage merchants
-use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Order, Response, StdError, StdResult};
+use cosmwasm_std::{
+    attr, ensure, Addr, Deps, DepsMut, MessageInfo, Order, Response, StdError, StdResult,
+};
 use cw_storage_plus::{Bound, Map};
 
 use crate::{
@@ -23,7 +25,17 @@ pub fn add_merchant(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
-    MERCHANTS.save(deps.storage, deps.api.addr_validate(address)?, &())?;
+    let validated_address = deps.api.addr_validate(address)?;
+
+    // check for duplicates
+    ensure!(
+        !is_merchant(deps.as_ref(), &validated_address)?,
+        ContractError::DuplicatedMerchant {
+            address: validated_address.to_string()
+        }
+    );
+
+    MERCHANTS.save(deps.storage, validated_address, &())?;
 
     let attrs = action_attrs("add_merchant", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))
@@ -143,6 +155,21 @@ mod tests {
 
         assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_1)).unwrap(),);
         assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address_2)).unwrap(),);
+
+        // adding merchant 2 again should not change state and return error
+        let err = add_merchant(
+            deps.as_mut(),
+            &mock_info(member_manager, &[]),
+            merchant_address_2,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            ContractError::DuplicatedMerchant {
+                address: merchant_address_2.to_string()
+            }
+        );
 
         // remove merchant by non_governor should fail
         let err = remove_merchant(
