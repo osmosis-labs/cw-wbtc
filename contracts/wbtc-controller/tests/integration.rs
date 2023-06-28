@@ -327,7 +327,6 @@ fn test_mint_and_burn() {
         &ExecuteMsg::IssueMintRequest {
             amount,
             tx_id: "tx_id_1".to_string(),
-            deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
         merchant,
@@ -670,7 +669,6 @@ fn test_token_pause_and_unpause_transfer() {
             &ExecuteMsg::IssueMintRequest {
                 amount,
                 tx_id: "tx_id_1".to_string(),
-                deposit_address: format!("bc1{}", merchant.address()),
             },
             &[],
             merchant,

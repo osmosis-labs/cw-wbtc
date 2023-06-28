@@ -14,6 +14,7 @@ use cosmwasm_std::{
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::{
+    deposit_address,
     request::{Request, RequestManager, RequestWithHash, Status},
     token,
 };
@@ -81,21 +82,16 @@ fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
 pub fn issue_mint_request(
     deps: DepsMut,
     info: MessageInfo,
-
     amount: Uint128,
     tx_id: String,
-    deposit_address: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
-    let (request_hash, request) = mint_requests().issue(
-        deps,
-        info.sender,
-        amount,
-        Some(tx_id),
-        // TODO: validate deposit address that it is already set
-        deposit_address,
-    )?;
+    let deposit_address =
+        deposit_address::get_custodian_deposit_address(deps.as_ref(), &info.sender)?;
+
+    let (request_hash, request) =
+        mint_requests().issue(deps, info.sender, amount, Some(tx_id), deposit_address)?;
 
     let mut attrs = action_attrs(
         "issue_mint_request",
@@ -246,6 +242,7 @@ mod tests {
         let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         // setup
@@ -260,13 +257,21 @@ mod tests {
             .unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
+
         let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
             issue_mint_request(
                 deps,
                 mock_info(sender, &[]),
                 Uint128::new(100_000_000),
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-                "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
             )
         };
 
@@ -289,10 +294,7 @@ mod tests {
                 .add_attribute("action", "issue_mint_request")
                 .add_attribute("requester", merchant)
                 .add_attribute("amount", "100000000")
-                .add_attribute(
-                    "deposit_address",
-                    "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
-                )
+                .add_attribute("deposit_address", custodian_deposit_address)
                 .add_attribute("nonce", "0")
                 .add_attribute(
                     "tx_id",
@@ -361,6 +363,7 @@ mod tests {
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         let amount = Uint128::new(100_000_000);
@@ -378,13 +381,21 @@ mod tests {
             .unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
+
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 
@@ -417,6 +428,7 @@ mod tests {
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         let amount = Uint128::new(100_000_000);
@@ -434,13 +446,21 @@ mod tests {
             .unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
+
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 
@@ -521,6 +541,7 @@ mod tests {
         let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         let denom = "factory/osmo1governor/wbtc";
@@ -549,13 +570,21 @@ mod tests {
             .unwrap();
         merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
+
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 

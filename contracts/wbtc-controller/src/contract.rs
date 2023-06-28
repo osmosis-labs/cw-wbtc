@@ -71,11 +71,9 @@ pub fn execute(
 
     match msg {
         // === mint ===
-        ExecuteMsg::IssueMintRequest {
-            amount,
-            tx_id,
-            deposit_address,
-        } => mint::issue_mint_request(deps, info, amount, tx_id, deposit_address),
+        ExecuteMsg::IssueMintRequest { amount, tx_id } => {
+            mint::issue_mint_request(deps, info, amount, tx_id)
+        }
         ExecuteMsg::CancelMintRequest { request_hash } => {
             mint::cancel_mint_request(deps, info, request_hash)
         }
@@ -312,7 +310,6 @@ mod tests {
             ExecuteMsg::IssueMintRequest {
                 amount: 10000u128.into(),
                 tx_id: "tx_id".to_string(),
-                deposit_address: "deposit_address".to_string(),
             },
         ];
 

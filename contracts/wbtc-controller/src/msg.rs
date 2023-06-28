@@ -49,11 +49,7 @@ pub enum ExecuteMsg {
     /// Issue request to mint tokens.
     /// Only merchants can issue mint requests.
     /// The request needs to be approved by the custodian in order to mint tokens.
-    IssueMintRequest {
-        amount: Uint128,
-        tx_id: String,
-        deposit_address: String,
-    },
+    IssueMintRequest { amount: Uint128, tx_id: String },
 
     /// Cancel mint request. Message sender must be the requester.
     CancelMintRequest { request_hash: String },
