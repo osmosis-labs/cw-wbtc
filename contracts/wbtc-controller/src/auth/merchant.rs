@@ -5,8 +5,8 @@ use cosmwasm_std::{
 use cw_storage_plus::{Bound, Map};
 
 use crate::{
+    attrs::action_attrs,
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
-    helpers::action_attrs,
     ContractError,
 };
 

@@ -10,8 +10,8 @@ use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     ContractError,
 };
 

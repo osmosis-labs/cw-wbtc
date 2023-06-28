@@ -13,7 +13,7 @@ pub fn action_attrs<A: Into<Attribute>>(
 }
 
 #[cfg(test)]
-pub mod test_helpers {
+pub mod tests {
     use cosmwasm_std::{
         testing::{mock_env, mock_info},
         Addr, ContractInfo, DepsMut, Env,

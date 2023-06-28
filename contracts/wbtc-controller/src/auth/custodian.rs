@@ -2,7 +2,7 @@
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
-use crate::{helpers::action_attrs, ContractError};
+use crate::{attrs::action_attrs, ContractError};
 
 use super::{allow_only, Role};
 

@@ -8,8 +8,8 @@ use osmosis_std::types::{
 };
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     ContractError,
 };
 

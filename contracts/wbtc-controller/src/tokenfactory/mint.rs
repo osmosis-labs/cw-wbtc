@@ -2,8 +2,8 @@
 use std::fmt::Display;
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     tokenfactory::request::RequestData,
     ContractError,
 };
@@ -229,10 +229,9 @@ mod tests {
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
     use crate::{
+        attrs::tests::setup_contract,
         auth::{custodian, governor, member_manager, merchant},
-        contract,
-        helpers::test_helpers::setup_contract,
-        ContractError,
+        contract, ContractError,
     };
 
     #[test]

@@ -3,8 +3,8 @@ use cosmwasm_std::{attr, ensure, Addr, Attribute, Deps, DepsMut, MessageInfo, Re
 use cw_storage_plus::Map;
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, merchant, Role},
-    helpers::action_attrs,
     ContractError,
 };
 
