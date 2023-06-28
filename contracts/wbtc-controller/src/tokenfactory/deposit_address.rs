@@ -1,9 +1,9 @@
 /// `deposit_address` module provides a way to manage deposit addresses for merchants and custodian.
-use cosmwasm_std::{attr, Addr, Attribute, Deps, DepsMut, MessageInfo, Response, StdError};
+use cosmwasm_std::{attr, ensure, Addr, Attribute, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Map;
 
 use crate::{
-    auth::{allow_only, Role},
+    auth::{allow_only, merchant, Role},
     helpers::action_attrs,
     ContractError,
 };
@@ -70,6 +70,15 @@ pub fn set_custodian_deposit_address(
     merchant: &str,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
+    // ensure that the merchant to be associated with the deposit address really has a merchant role.
+    // since `set_deposit_address` only checks if sender is custodian.
+    ensure!(
+        merchant::is_merchant(deps.as_ref(), &deps.api.addr_validate(merchant)?)?,
+        ContractError::DepositAddressAssociatedByNonMerchant {
+            address: merchant.to_string(),
+        }
+    );
+
     Ok(Response::new().add_attributes(action_attrs(
         "set_custodian_deposit_address",
         CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.set_deposit_address(
@@ -100,6 +109,9 @@ pub fn set_merchant_deposit_address(
     info: &MessageInfo,
     deposit_address: &str,
 ) -> Result<Response, ContractError> {
+    // no need to ensure that the merchant to be associated with the deposit address really has a merchant role.
+    // since it sets to the sender address, which is already checked to be a merchant in `set_deposit_address`.
+
     Ok(Response::new().add_attributes(action_attrs(
         "set_merchant_deposit_address",
         MERCHANT_DEPOSIT_ADDRESS.set_deposit_address(
@@ -136,6 +148,7 @@ mod tests {
         let custodian = "osmo1custodian";
         let merchant_1 = "osmo1merchant1";
         let merchant_2 = "osmo1merchant2";
+        let non_merchant = "osmo1nonmerchant";
         let deposit_address_1 = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
         let deposit_address_2 = "bc1q35rayrk92pvwamwm4n2hsd3epez2g2tqcqa0fx";
 
@@ -176,6 +189,20 @@ mod tests {
             )
             .unwrap_err(),
             ContractError::Unauthorized {}
+        );
+
+        // set custodian deposit address for non merchant should fail
+        assert_eq!(
+            set_custodian_deposit_address(
+                deps.as_mut(),
+                &mock_info(custodian, &[]),
+                non_merchant,
+                deposit_address_1,
+            )
+            .unwrap_err(),
+            ContractError::DepositAddressAssociatedByNonMerchant {
+                address: non_merchant.to_string()
+            }
         );
 
         // set custodian deposit address for merchant 1

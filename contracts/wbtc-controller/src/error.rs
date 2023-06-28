@@ -12,6 +12,11 @@ pub enum ContractError {
     #[error("Expect request to have updatable status: request_hash: {request_hash}")]
     UpdatableStatusExpected { request_hash: String },
 
+    #[error(
+        "Only merchant can be associated with deposit address but {address} is not a merchant"
+    )]
+    DepositAddressAssociatedByNonMerchant { address: String },
+
     #[error("Custodian deposit address not found for merchant {merchant}")]
     CustodianDepositAddressNotFound { merchant: String },
 
