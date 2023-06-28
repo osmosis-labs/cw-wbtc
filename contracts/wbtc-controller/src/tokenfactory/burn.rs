@@ -17,7 +17,7 @@ use crate::{
 
 use super::{
     deposit_address,
-    request::{Request, RequestData, RequestManager, RequestWithHash, Status},
+    request::{Request, RequestManager, RequestWithHash, Status},
     token,
 };
 
@@ -105,14 +105,9 @@ pub fn burn(
         deposit_address,
     )?;
 
-    // construct attributes
-    let mut attrs = action_attrs("burn", <Vec<Attribute>>::from(&request.data));
-    attrs.extend(vec![attr("request_hash", request_hash)]);
-
     // construct burn message
-    let RequestData { amount, .. } = request.data;
     let denom = token::get_token_denom(deps.storage)?;
-    let token_to_burn = Coin::new(amount.u128(), denom);
+    let token_to_burn = Coin::new(request.amount.u128(), denom);
 
     // burn the requested amount of tokens from sender, which can only be the merchant
     let burn_msg: CosmosMsg = MsgBurn {
@@ -121,6 +116,10 @@ pub fn burn(
         burn_from_address: info.sender.to_string(),
     }
     .into();
+
+    // construct attributes
+    let mut attrs = action_attrs("burn", <Vec<Attribute>>::from(&request.data()));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_message(burn_msg).add_attributes(attrs))
 }
@@ -149,7 +148,7 @@ pub fn confirm_burn_request(
 
     let mut attrs = action_attrs(
         "confirm_burn_request",
-        <Vec<Attribute>>::from(&request.data),
+        <Vec<Attribute>>::from(&request.data()),
     );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
@@ -302,7 +301,7 @@ mod tests {
         assert_eq!(request.status, BurnRequestStatus::Pending);
 
         assert_eq!(
-            request.data,
+            request.data(),
             RequestData {
                 requester: Addr::unchecked(merchant),
                 amount,
@@ -391,7 +390,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(request_before.status, BurnRequestStatus::Pending);
-        assert_eq!(request_before.data.tx_id, None);
+        assert_eq!(request_before.tx_id, None);
 
         confirm_burn_request(
             deps.as_mut(),
@@ -406,7 +405,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(request_after.status, BurnRequestStatus::Confirmed);
-        assert_eq!(request_after.data.tx_id, Some("btc_tx_id".to_string()));
+        assert_eq!(request_after.tx_id, Some("btc_tx_id".to_string()));
     }
 
     #[test]

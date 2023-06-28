@@ -354,7 +354,7 @@ fn test_mint_and_burn() {
 
     let res_by_nonce = wbtc
         .query::<GetMintRequestByNonceResponse>(&QueryMsg::GetMintRequestByNonce {
-            nonce: req.request.data.nonce,
+            nonce: req.request.nonce,
         })
         .unwrap()
         .request;
@@ -436,7 +436,7 @@ fn test_mint_and_burn() {
 
     let res_by_nonce = wbtc
         .query::<GetBurnRequestByNonceResponse>(&QueryMsg::GetBurnRequestByNonce {
-            nonce: req.request.data.nonce,
+            nonce: req.request.nonce,
         })
         .unwrap()
         .request;
@@ -444,7 +444,7 @@ fn test_mint_and_burn() {
     assert_eq!(req_by_hash, req.request);
     assert_eq!(res_by_nonce, req.request);
     assert_eq!(req.request.status, BurnRequestStatus::Pending);
-    assert_eq!(req.request.data.tx_id, None);
+    assert_eq!(req.request.tx_id, None);
 
     // check supply
     assert_eq!(
@@ -488,7 +488,6 @@ fn test_mint_and_burn() {
         })
         .unwrap()
         .request
-        .data
         .tx_id,
         Some("tx_id_2".to_string())
     );

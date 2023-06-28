@@ -84,10 +84,39 @@ impl From<&RequestData> for Vec<Attribute> {
 }
 
 /// `Request` contains common data for any type of request and its status.
+/// Since serde flatten does not work with cosmwasm contract, we duplicate
+/// `RequestData` fields here.
 #[cw_serde]
 pub struct Request<S> {
-    pub data: RequestData,
+    /// Address of the requester
+    pub requester: Addr,
+
+    /// Amount of tokens requested to perform requested operation
+    pub amount: Uint128,
+
+    /// BTC transaction id
+    pub tx_id: Option<String>,
+
+    /// Deposit address to send BTC to
+    pub deposit_address: String,
+
+    /// Nonce of the request
+    pub nonce: Uint128,
+
+    /// Status of the request, each request type has its own status
     pub status: S,
+}
+
+impl<S> Request<S> {
+    pub fn data(self) -> RequestData {
+        RequestData {
+            requester: self.requester,
+            amount: self.amount,
+            tx_id: self.tx_id,
+            deposit_address: self.deposit_address,
+            nonce: self.nonce,
+        }
+    }
 }
 
 /// `RequestWithHash` is a wrapper around `Request` that contains request hash.
@@ -132,16 +161,13 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> Self {
         let indexes = RequestIndexes {
             nonce: MultiIndex::new(
-                |_pk: &[u8], req: &Request<S>| req.data.nonce.to_be_bytes().to_vec(),
+                |_pk: &[u8], req: &Request<S>| req.nonce.to_be_bytes().to_vec(),
                 requests_namespace,
                 requests_nonce_idx_namespace,
             ),
             status_and_nonce: MultiIndex::new(
                 |_pk: &[u8], req: &Request<S>| {
-                    (
-                        req.status.to_string(),
-                        req.data.nonce.to_be_bytes().to_vec(),
-                    )
+                    (req.status.to_string(), req.nonce.to_be_bytes().to_vec())
                 },
                 requests_namespace,
                 requests_status_and_nonce_idx_namespace,
@@ -166,16 +192,14 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> Result<(String, Request<S>), ContractError> {
         let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
-            data: RequestData {
-                requester,
-                amount,
-                tx_id,
-                deposit_address,
-                nonce,
-            },
+            requester,
+            amount,
+            tx_id,
+            deposit_address,
+            nonce,
             status: S::initial(),
         };
-        let request_hash = request.data.hash()?.to_base64();
+        let request_hash = request.clone().data().hash()?.to_base64();
         self.requests
             .save(deps.storage, request_hash.clone(), &request)?;
         Ok((request_hash, request))
@@ -221,7 +245,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> StdResult<Request<S>> {
         let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
-        request.data.tx_id = Some(tx_id);
+        request.tx_id = Some(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
 
@@ -371,20 +395,18 @@ mod tests {
     #[test]
     fn test_hash_request() {
         let request = Request {
-            data: RequestData {
-                requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
-                amount: Uint128::new(100),
-                tx_id: Some(
-                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-                ),
-                deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
+            requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
+            amount: Uint128::new(100),
+            tx_id: Some(
+                "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
+            ),
+            deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
 
-                nonce: Uint128::new(3),
-            },
+            nonce: Uint128::new(3),
             status: TestRequestStatus::Pending,
         };
 
-        let struct_hash = request.data.hash().unwrap();
+        let struct_hash = request.data().hash().unwrap();
 
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",
@@ -408,7 +430,7 @@ mod tests {
     fn test_list_requests() {
         let mut deps = mock_dependencies();
 
-        let base_request_data = RequestData {
+        let base_request = Request {
             requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
             amount: Uint128::new(100),
             tx_id: Some(
@@ -417,6 +439,7 @@ mod tests {
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
 
             nonce: Uint128::new(3),
+            status: TestRequestStatus::Pending,
         };
 
         let mut requests: Vec<RequestWithHash<TestRequestStatus>> = Vec::new();
@@ -431,13 +454,11 @@ mod tests {
             }
 
             let request = Request {
-                data: RequestData {
-                    nonce: Uint128::new(i),
-                    ..base_request_data.clone()
-                },
+                nonce: Uint128::new(i),
                 status,
+                ..base_request.clone()
             };
-            let request_hash = request.data.hash().unwrap().to_base64();
+            let request_hash = request.clone().data().hash().unwrap().to_base64();
             requests.push(RequestWithHash {
                 request_hash: request_hash.clone(),
                 request: request.clone(),

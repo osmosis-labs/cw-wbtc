@@ -97,7 +97,10 @@ pub fn issue_mint_request(
         deposit_address,
     )?;
 
-    let mut attrs = action_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs(
+        "issue_mint_request",
+        <Vec<Attribute>>::from(&request.data()),
+    );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -119,7 +122,7 @@ pub fn cancel_mint_request(
         |request| {
             // ensure sender is the requester
             ensure!(
-                request.data.requester == info.sender,
+                request.requester == info.sender,
                 ContractError::Unauthorized {}
             );
 
@@ -128,7 +131,10 @@ pub fn cancel_mint_request(
     )?;
 
     // construct event attributes
-    let mut attrs = action_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs(
+        "cancel_mint_request",
+        <Vec<Attribute>>::from(&request.data()),
+    );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -151,7 +157,7 @@ pub fn approve_mint_request(
             MintRequestStatus::Approved,
             |_| Ok(()),
         )?
-        .data;
+        .data();
 
     // construct event attributes
     let mut attrs = action_attrs(
@@ -190,7 +196,7 @@ pub fn reject_mint_request(
         .check_and_update_request_status(deps, &request_hash, MintRequestStatus::Rejected, |_| {
             Ok(())
         })?
-        .data;
+        .data();
 
     let mut attrs = action_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
@@ -300,9 +306,12 @@ mod tests {
             .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
-        assert_eq!(request.data.nonce, Uint128::new(0));
+        assert_eq!(request.nonce, Uint128::new(0));
         assert_eq!(request.status, MintRequestStatus::Pending);
-        assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
+        assert_eq!(
+            request.clone().data().hash().unwrap().to_base64(),
+            hash_on_nonce_0
+        );
 
         let (request_hash_by_nonce, request_by_nonce) =
             get_mint_request_by_nonce(deps.as_ref(), &Uint128::new(0)).unwrap();
