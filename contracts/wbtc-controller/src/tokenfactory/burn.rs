@@ -98,7 +98,6 @@ pub fn burn(
     // record burn request
     let (request_hash, request) = burn_requests().issue(
         deps.branch(),
-        env.clone(),
         info.sender.clone(),
         amount,
         // tx_id will later be confirmed by the custodian
@@ -132,7 +131,7 @@ pub fn burn(
 /// And confirm that with `tx_id`.
 pub fn confirm_burn_request(
     mut deps: DepsMut,
-    env: Env,
+
     info: MessageInfo,
     request_hash: String,
     tx_id: String,
@@ -143,17 +142,7 @@ pub fn confirm_burn_request(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
-        |request| {
-            // ensure contract address matched request's contract address
-            ensure!(
-                request.data.contract.address == env.contract.address,
-                ContractError::Std(cosmwasm_std::StdError::generic_err(
-                    "unreachable: contract address mismatch"
-                ))
-            );
-
-            Ok(())
-        },
+        |_| Ok(()),
     )?;
 
     burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
@@ -319,9 +308,7 @@ mod tests {
                 amount,
                 tx_id: None,
                 deposit_address: deposit_address.to_string(),
-                block: env.block.clone(),
-                transaction: env.transaction.clone(),
-                contract: env.contract.clone(),
+
                 nonce: Uint128::zero(),
             }
         );
@@ -389,7 +376,7 @@ mod tests {
             },
         };
 
-        let res = burn(deps.as_mut(), env.clone(), mock_info(merchant, &[]), amount).unwrap();
+        let res = burn(deps.as_mut(), env, mock_info(merchant, &[]), amount).unwrap();
 
         let request_hash = res
             .attributes
@@ -408,7 +395,6 @@ mod tests {
 
         confirm_burn_request(
             deps.as_mut(),
-            env,
             mock_info(custodian, &[]),
             request_hash.clone(),
             "btc_tx_id".to_string(),

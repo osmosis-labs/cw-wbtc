@@ -72,15 +72,15 @@ pub fn execute(
             amount,
             tx_id,
             deposit_address,
-        } => mint::issue_mint_request(deps, info, env, amount, tx_id, deposit_address),
+        } => mint::issue_mint_request(deps, info, amount, tx_id, deposit_address),
         ExecuteMsg::CancelMintRequest { request_hash } => {
-            mint::cancel_mint_request(deps, info, env.contract.address, request_hash)
+            mint::cancel_mint_request(deps, info, request_hash)
         }
         ExecuteMsg::ApproveMintRequest { request_hash } => {
             mint::approve_mint_request(deps, info, env.contract.address, request_hash)
         }
         ExecuteMsg::RejectMintRequest { request_hash } => {
-            mint::reject_mint_request(deps, info, env.contract.address, request_hash)
+            mint::reject_mint_request(deps, info, request_hash)
         }
 
         // === burn ===
@@ -88,7 +88,7 @@ pub fn execute(
         ExecuteMsg::ConfirmBurnRequest {
             request_hash,
             tx_id,
-        } => burn::confirm_burn_request(deps, env, info, request_hash, tx_id),
+        } => burn::confirm_burn_request(deps, info, request_hash, tx_id),
         ExecuteMsg::SetMinBurnAmount { amount } => burn::set_min_burn_amount(deps, &info, amount),
 
         // === auth ===

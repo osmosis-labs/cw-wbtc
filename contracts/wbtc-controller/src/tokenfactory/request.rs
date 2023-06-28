@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut, Env,
-    Order, StdError, StdResult, TransactionInfo, Uint128,
+    attr, ensure, to_binary, Addr, Attribute, Binary, Deps, DepsMut, Order, StdError, StdResult,
+    Uint128,
 };
 
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
@@ -44,15 +44,6 @@ pub struct RequestData {
     /// Deposit address to send BTC to
     pub deposit_address: String,
 
-    /// Block info at the time of the request issuance
-    pub block: BlockInfo,
-
-    /// Transaction info at the time of the request issuance
-    pub transaction: Option<TransactionInfo>,
-
-    /// Contract info of the contract that issued the request
-    pub contract: ContractInfo,
-
     /// Nonce of the request
     pub nonce: Uint128,
 }
@@ -74,25 +65,12 @@ impl From<&RequestData> for Vec<Attribute> {
             amount,
             tx_id,
             deposit_address,
-            block,
-            transaction,
             nonce,
-            // don't include contract info in attributes since it's already exists as `_contract_address` by default
-            contract: _,
         } = data;
         let mut attrs = vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
             attr("deposit_address", deposit_address.as_str()),
-            attr("block_height", block.height.to_string()),
-            attr("timestamp", block.time.nanos().to_string()),
-            attr(
-                "transaction_index",
-                transaction
-                    .as_ref()
-                    .map(|t| t.index.to_string())
-                    .unwrap_or("none".to_string()),
-            ),
             attr("nonce", nonce.to_string()),
         ];
 
@@ -180,18 +158,12 @@ impl<'a, S: Status> RequestManager<'a, S> {
     pub fn issue(
         &self,
         mut deps: DepsMut,
-        env: Env,
+
         requester: Addr,
         amount: Uint128,
         tx_id: Option<String>,
         deposit_address: String,
     ) -> Result<(String, Request<S>), ContractError> {
-        let Env {
-            block,
-            transaction,
-            contract,
-        } = env;
-
         let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
             data: RequestData {
@@ -199,9 +171,6 @@ impl<'a, S: Status> RequestManager<'a, S> {
                 amount,
                 tx_id,
                 deposit_address,
-                block,
-                transaction,
-                contract,
                 nonce,
             },
             status: S::initial(),
@@ -357,7 +326,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
 #[cfg(test)]
 mod tests {
 
-    use cosmwasm_std::{testing::mock_dependencies, Timestamp};
+    use cosmwasm_std::testing::mock_dependencies;
 
     use super::*;
 
@@ -409,17 +378,7 @@ mod tests {
                     "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
                 ),
                 deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-                block: BlockInfo {
-                    height: 1,
-                    time: Timestamp::from_seconds(1689069540),
-                    chain_id: "osmosis-1".to_string(),
-                },
-                transaction: Some(TransactionInfo { index: 1 }),
-                contract: ContractInfo {
-                    address: Addr::unchecked(
-                        "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                    ),
-                },
+
                 nonce: Uint128::new(3),
             },
             status: TestRequestStatus::Pending,
@@ -432,17 +391,6 @@ mod tests {
             "amount": "100",
             "tx_id": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf",
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
-            "block": {
-                "height": 1,
-                "time": "1689069540000000000",
-                "chain_id": "osmosis-1"
-            },
-            "transaction": {
-                "index": 1
-            },
-            "contract": {
-                "address": "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9"
-            },
             "nonce": "3"
         }"#;
 
@@ -467,17 +415,7 @@ mod tests {
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
             ),
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-            block: BlockInfo {
-                height: 1,
-                time: Timestamp::from_seconds(1689069540),
-                chain_id: "osmosis-1".to_string(),
-            },
-            transaction: Some(TransactionInfo { index: 1 }),
-            contract: ContractInfo {
-                address: Addr::unchecked(
-                    "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                ),
-            },
+
             nonce: Uint128::new(3),
         };
 
