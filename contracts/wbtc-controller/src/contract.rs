@@ -10,7 +10,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
 };
 
 use crate::auth::{custodian, governor, member_manager, merchant};
-use crate::error::ContractError;
+use crate::error::{non_payable, ContractError};
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
@@ -66,6 +66,9 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // no execute message requires sending funds, reject all non-zero funds
+    non_payable(&info)?;
+
     match msg {
         // === mint ===
         ExecuteMsg::IssueMintRequest {
@@ -282,6 +285,47 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
             );
 
             Ok(Response::new().add_attribute("hook", "block_before_send"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Coin,
+    };
+
+    use super::*;
+
+    #[test]
+    fn execute_reject_all_non_zero_funds() {
+        // sample messages
+        let msgs = vec![
+            ExecuteMsg::Burn {
+                amount: 1000u128.into(),
+            },
+            ExecuteMsg::Pause {},
+            ExecuteMsg::SetMinBurnAmount {
+                amount: 10000u128.into(),
+            },
+            ExecuteMsg::IssueMintRequest {
+                amount: 10000u128.into(),
+                tx_id: "tx_id".to_string(),
+                deposit_address: "deposit_address".to_string(),
+            },
+        ];
+
+        for msg in msgs {
+            let mut deps = mock_dependencies();
+            let err = execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("sender", &[Coin::new(1, "uosmo")]),
+                msg,
+            )
+            .unwrap_err();
+            assert_eq!(err, ContractError::NonPayable {});
         }
     }
 }

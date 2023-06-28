@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError, Uint128};
+use cosmwasm_std::{ensure, MessageInfo, StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -31,4 +31,13 @@ pub enum ContractError {
         requested_burn_amount: Uint128,
         min_burn_amount: Uint128,
     },
+
+    #[error("This message does not accept funds")]
+    NonPayable {},
+}
+
+// ensure that the message sender is the merchant
+pub fn non_payable(info: &MessageInfo) -> Result<(), ContractError> {
+    ensure!(info.funds.is_empty(), ContractError::NonPayable {});
+    Ok(())
 }
