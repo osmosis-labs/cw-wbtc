@@ -104,16 +104,18 @@ Setup console environment
 ```js
 wbtc = contract['wbtc-controller']
 governor = wbtc.signer(test1)
-custodian = wbtc.signer(test2)
-merchants = [wbtc.signer(test3), wbtc.signer(test4)]
+memberManager = wbtc.signer(test2)
+custodian = wbtc.signer(test3)
+merchants = [wbtc.signer(test4), wbtc.signer(test5)]
 ```
 
 Check if the roles are set correctly
 ```js
 await wbtc.isGovernor({ address: test1.address }) // => { is_governor: true }
-await wbtc.isCustodian({ address: test2.address }) // => { is_custodian: true }
-await wbtc.isMerchant({ address: test3.address }) // => { is_merchant: true }
+await wbtc.isMemberManager({ address: test2.address }) // => { is_member_manager: true }
+await wbtc.isCustodian({ address: test3.address }) // => { is_custodian: true }
 await wbtc.isMerchant({ address: test4.address }) // => { is_merchant: true }
+await wbtc.isMerchant({ address: test5.address }) // => { is_merchant: true }
 ```
 
 Try executing a contract and check the emitted events
@@ -137,7 +139,7 @@ console.dir(result.logs[0].events, {depth: null})
 //     attributes: [
 //       {
 //         key: '_contract_address',
-//         value: 'osmo19y9uedlq0cpugg5a5jtxn8vs5rdwepnk7v863qmyc0p0899dfxxq5r8q8u'
+//         value: 'osmo13we0myxwzlpx8l5ark8elw5gj5d59dl6cjkzmt80c5q5cv5rt54qcslsrc'
 //       }
 //     ]
 //   },
@@ -148,7 +150,7 @@ console.dir(result.logs[0].events, {depth: null})
 //       { key: 'module', value: 'wasm' },
 //       {
 //         key: 'sender',
-//         value: 'osmo1qwexv7c6sm95lwhzn9027vyu2ccneaqad4w8ka'
+//         value: 'osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
 //       }
 //     ]
 //   },
@@ -157,23 +159,23 @@ console.dir(result.logs[0].events, {depth: null})
 //     attributes: [
 //       {
 //         key: '_contract_address',
-//         value: 'osmo19y9uedlq0cpugg5a5jtxn8vs5rdwepnk7v863qmyc0p0899dfxxq5r8q8u'
+//         value: 'osmo13we0myxwzlpx8l5ark8elw5gj5d59dl6cjkzmt80c5q5cv5rt54qcslsrc'
 //       },
 //       { key: 'action', value: 'issue_mint_request' },
 //       {
 //         key: 'requester',
-//         value: 'osmo1qwexv7c6sm95lwhzn9027vyu2ccneaqad4w8ka'
+//         value: 'osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
 //       },
 //       { key: 'amount', value: '10000000' },
-//       { key: 'tx_id', value: 'xxxxxxxx' },
-//       { key: 'deposit_address', value: 'xxxxxx' },
-//       { key: 'block_height', value: '92912' },
-//       { key: 'timestamp', value: '1684316814799465209' },
-//       { key: 'transaction_index', value: '0' },
+//       {
+//         key: 'deposit_address',
+//         value: 'bc1osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
+//       },
 //       { key: 'nonce', value: '0' },
+//       { key: 'tx_id', value: 'xxxxxxxx' },
 //       {
 //         key: 'request_hash',
-//         value: 'R3nfR12vjFv3/HDpnc0ToRE0Ir5/SsKJajr5T5GA38M='
+//         value: 'IHUKI6mIsmPU66VdZt6FMc4BdIiQYrtb5G9bi/2G0M4='
 //       }
 //     ]
 //   }
