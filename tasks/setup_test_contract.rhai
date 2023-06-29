@@ -18,7 +18,7 @@ let base_args = #{
     label: "default",
 };
 
-let owner_address = "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"; // test1
+let governor_address = "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"; // test1
 let custodian_address = "osmo18s5lynnmx37hq4wlrw9gdn68sg2uxp5rgk26vv"; // test2
 let merchant_addresses = [
     "osmo1qwexv7c6sm95lwhzn9027vyu2ccneaqad4w8ka", // test3
@@ -30,11 +30,11 @@ let wbtc_contract = wasm::deploy(merge(
     base_args,
     #{
         msg: #{
-            owner: owner_address,
+            governor: governor_address,
             subdenom: "wbtc"
         },
         funds: "10000000uosmo",
-        admin: owner_address,
+        admin: governor_address,
     },
 ));
 
