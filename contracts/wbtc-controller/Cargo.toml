@@ -1,6 +1,6 @@
 [package]
 name = "wbtc-controller"
-version = "1.0.0"
+version = "1.0.0-rc0"
 authors = ["Supanat Potiwarakorn <supanat.ptk@gmail.com>"]
 edition = "2021"
 
