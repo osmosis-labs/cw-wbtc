@@ -72,7 +72,7 @@ pub fn execute(
     match msg {
         // === mint ===
         ExecuteMsg::IssueMintRequest { amount, tx_id } => {
-            mint::issue_mint_request(deps, info, amount, tx_id)
+            mint::issue_mint_request(deps, env, info, amount, tx_id)
         }
         ExecuteMsg::CancelMintRequest { request_hash } => {
             mint::cancel_mint_request(deps, info, request_hash)

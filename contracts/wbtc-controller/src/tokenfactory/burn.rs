@@ -103,6 +103,7 @@ pub fn burn(
         // tx_id will later be confirmed by the custodian
         None,
         deposit_address,
+        env.block.time,
     )?;
 
     // construct burn message
@@ -258,10 +259,12 @@ mod tests {
         let denom = token::get_token_denom(deps.as_ref().storage).unwrap();
         let token_to_burn = Coin::new(amount.u128(), denom);
 
+        let timestamp = Timestamp::from_seconds(1689069540);
+
         let env = Env {
             block: BlockInfo {
                 height: 1,
-                time: Timestamp::from_seconds(1689069540),
+                time: timestamp,
                 chain_id: "osmosis-1".to_string(),
             },
             transaction: Some(TransactionInfo { index: 1 }),
@@ -307,8 +310,8 @@ mod tests {
                 amount,
                 tx_id: None,
                 deposit_address: deposit_address.to_string(),
-
                 nonce: Uint128::zero(),
+                timestamp
             }
         );
 

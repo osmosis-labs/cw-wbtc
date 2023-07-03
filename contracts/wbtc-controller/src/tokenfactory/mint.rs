@@ -9,7 +9,8 @@ use crate::{
 };
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, Addr, Attribute, Coin, Deps, DepsMut, MessageInfo, Response, StdResult, Uint128,
+    attr, ensure, Addr, Attribute, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
@@ -81,6 +82,7 @@ fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
 /// The mint request can be cancelled by the merchant.
 pub fn issue_mint_request(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     amount: Uint128,
     tx_id: String,
@@ -90,8 +92,14 @@ pub fn issue_mint_request(
     let deposit_address =
         deposit_address::get_custodian_deposit_address(deps.as_ref(), &info.sender)?;
 
-    let (request_hash, request) =
-        mint_requests().issue(deps, info.sender, amount, Some(tx_id), deposit_address)?;
+    let (request_hash, request) = mint_requests().issue(
+        deps,
+        info.sender,
+        amount,
+        Some(tx_id),
+        deposit_address,
+        env.block.time,
+    )?;
 
     let mut attrs = action_attrs(
         "issue_mint_request",
@@ -269,6 +277,7 @@ mod tests {
         let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
             issue_mint_request(
                 deps,
+                mock_env(),
                 mock_info(sender, &[]),
                 Uint128::new(100_000_000),
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
@@ -286,7 +295,7 @@ mod tests {
             ContractError::Unauthorized {}
         );
 
-        let hash_on_nonce_0 = "+ZJxKZDxDU+KySvWRpqzC50ikUISiq0W0sp0T358Tck=";
+        let hash_on_nonce_0 = "5FbsBhznfQIx8X8kzYsCsSuxWytfbL1+sUqYohcX1xI=";
 
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
@@ -295,6 +304,7 @@ mod tests {
                 .add_attribute("requester", merchant)
                 .add_attribute("amount", "100000000")
                 .add_attribute("deposit_address", custodian_deposit_address)
+                .add_attribute("timestamp", mock_env().block.time.nanos().to_string())
                 .add_attribute("nonce", "0")
                 .add_attribute(
                     "tx_id",
@@ -393,6 +403,7 @@ mod tests {
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
@@ -458,6 +469,7 @@ mod tests {
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
@@ -582,6 +594,7 @@ mod tests {
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),

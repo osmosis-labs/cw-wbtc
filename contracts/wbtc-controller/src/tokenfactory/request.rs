@@ -4,7 +4,7 @@ use std::fmt::Display;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     attr, ensure, to_binary, Addr, Attribute, Binary, Deps, DepsMut, Order, StdError, StdResult,
-    Uint128,
+    Timestamp, Uint128,
 };
 
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
@@ -44,6 +44,9 @@ pub struct RequestData {
     /// Deposit address to send BTC to
     pub deposit_address: String,
 
+    /// Timestamp for when the request was issued
+    pub timestamp: Timestamp,
+
     /// Nonce of the request
     pub nonce: Uint128,
 }
@@ -65,12 +68,14 @@ impl From<&RequestData> for Vec<Attribute> {
             amount,
             tx_id,
             deposit_address,
+            timestamp,
             nonce,
         } = data;
         let mut attrs = vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
             attr("deposit_address", deposit_address.as_str()),
+            attr("timestamp", timestamp.nanos().to_string()),
             attr("nonce", nonce.to_string()),
         ];
 
@@ -100,6 +105,9 @@ pub struct Request<S> {
     /// Deposit address to send BTC to
     pub deposit_address: String,
 
+    /// Timestamp for when the request was issued
+    pub timestamp: Timestamp,
+
     /// Nonce of the request
     pub nonce: Uint128,
 
@@ -114,6 +122,7 @@ impl<S> Request<S> {
             amount: self.amount,
             tx_id: self.tx_id,
             deposit_address: self.deposit_address,
+            timestamp: self.timestamp,
             nonce: self.nonce,
         }
     }
@@ -184,11 +193,11 @@ impl<'a, S: Status> RequestManager<'a, S> {
     pub fn issue(
         &self,
         mut deps: DepsMut,
-
         requester: Addr,
         amount: Uint128,
         tx_id: Option<String>,
         deposit_address: String,
+        timestamp: Timestamp,
     ) -> Result<(String, Request<S>), ContractError> {
         let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
@@ -196,6 +205,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
             amount,
             tx_id,
             deposit_address,
+            timestamp,
             nonce,
             status: S::initial(),
         };
@@ -401,7 +411,7 @@ mod tests {
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
             ),
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-
+            timestamp: Timestamp::from_seconds(1689069540).plus_nanos(123456),
             nonce: Uint128::new(3),
             status: TestRequestStatus::Pending,
         };
@@ -413,6 +423,7 @@ mod tests {
             "amount": "100",
             "tx_id": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf",
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
+            "timestamp": "1689069540000123456",
             "nonce": "3"
         }"#;
 
@@ -438,6 +449,7 @@ mod tests {
             ),
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
 
+            timestamp: Timestamp::from_seconds(10000000000),
             nonce: Uint128::new(3),
             status: TestRequestStatus::Pending,
         };
