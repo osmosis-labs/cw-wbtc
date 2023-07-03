@@ -5,12 +5,16 @@
 */
 
 export interface InstantiateMsg {
-  owner: string;
+  governor: string;
   subdenom: string;
 }
 export type ExecuteMsg = {
-  transfer_ownership: {
-    new_owner_address: string;
+  transfer_governorship: {
+    new_governor_address: string;
+  };
+} | {
+  set_member_manager: {
+    address: string;
   };
 } | {
   set_custodian: {
@@ -36,7 +40,6 @@ export type ExecuteMsg = {
 } | {
   issue_mint_request: {
     amount: Uint128;
-    deposit_address: string;
     tx_id: string;
   };
 } | {
@@ -61,9 +64,17 @@ export type ExecuteMsg = {
     tx_id: string;
   };
 } | {
+  set_min_burn_amount: {
+    amount: Uint128;
+  };
+} | {
   set_denom_metadata: {
     metadata: Metadata;
   };
+} | {
+  pause: {};
+} | {
+  unpause: {};
 };
 export type Uint128 = string;
 export interface Metadata {
@@ -114,6 +125,8 @@ export type QueryMsg = {
     status?: BurnRequestStatus | null;
   };
 } | {
+  get_min_burn_amount: {};
+} | {
   get_token_denom: {};
 } | {
   is_merchant: {
@@ -125,15 +138,21 @@ export type QueryMsg = {
     start_after?: string | null;
   };
 } | {
+  is_member_manager: {
+    address: string;
+  };
+} | {
+  get_member_manager: {};
+} | {
   is_custodian: {
     address: string;
   };
 } | {
   get_custodian: {};
 } | {
-  get_owner: {};
+  get_governor: {};
 } | {
-  is_owner: {
+  is_governor: {
     address: string;
   };
 } | {
@@ -144,45 +163,22 @@ export type QueryMsg = {
   get_merchant_deposit_address: {
     merchant: string;
   };
+} | {
+  is_paused: {};
 };
 export type MintRequestStatus = "pending" | "approved" | "cancelled" | "rejected";
-export type BurnRequestStatus = "executed" | "confirmed";
-export type Timestamp = Uint64;
-export type Uint64 = string;
+export type BurnRequestStatus = "pending" | "confirmed";
 export type Addr = string;
-export type TxId = "pending" | {
-  confirmed: string;
-};
 export interface GetBurnRequestByHashResponse {
   request: RequestForBurnRequestStatus;
 }
 export interface RequestForBurnRequestStatus {
-  data: RequestData;
-  status: BurnRequestStatus;
-}
-export interface RequestData {
   amount: Uint128;
-  block: BlockInfo;
-  contract: ContractInfo;
   deposit_address: string;
   nonce: Uint128;
   requester: Addr;
-  transaction?: TransactionInfo | null;
-  tx_id: TxId;
-}
-export interface BlockInfo {
-  chain_id: string;
-  height: number;
-  time: Timestamp;
-  [k: string]: unknown;
-}
-export interface ContractInfo {
-  address: Addr;
-  [k: string]: unknown;
-}
-export interface TransactionInfo {
-  index: number;
-  [k: string]: unknown;
+  status: BurnRequestStatus;
+  tx_id?: string | null;
 }
 export interface GetBurnRequestByNonceResponse {
   request: RequestForBurnRequestStatus;
@@ -197,15 +193,28 @@ export interface GetCustodianResponse {
 export interface GetCustodianDepositAddressResponse {
   address: string;
 }
+export interface GetGovernorResponse {
+  address: Addr;
+}
+export interface GetMemberManagerResponse {
+  address: Addr;
+}
 export interface GetMerchantDepositAddressResponse {
   address: string;
+}
+export interface GetMinBurnAmountResponse {
+  amount: Uint128;
 }
 export interface GetMintRequestByHashResponse {
   request: RequestForMintRequestStatus;
 }
 export interface RequestForMintRequestStatus {
-  data: RequestData;
+  amount: Uint128;
+  deposit_address: string;
+  nonce: Uint128;
+  requester: Addr;
   status: MintRequestStatus;
+  tx_id?: string | null;
 }
 export interface GetMintRequestByNonceResponse {
   request: RequestForMintRequestStatus;
@@ -214,20 +223,23 @@ export interface GetMintRequestByNonceResponse {
 export interface GetMintRequestsCountResponse {
   count: Uint128;
 }
-export interface GetOwnerResponse {
-  address: Addr;
-}
 export interface GetTokenDenomResponse {
   denom: string;
 }
 export interface IsCustodianResponse {
   is_custodian: boolean;
 }
+export interface IsGovernorResponse {
+  is_governor: boolean;
+}
+export interface IsMemberManagerResponse {
+  is_member_manager: boolean;
+}
 export interface IsMerchantResponse {
   is_merchant: boolean;
 }
-export interface IsOwnerResponse {
-  is_owner: boolean;
+export interface IsPausedResponse {
+  is_paused: boolean;
 }
 export interface ListBurnRequestsResponse {
   requests: RequestWithHashForBurnRequestStatus[];

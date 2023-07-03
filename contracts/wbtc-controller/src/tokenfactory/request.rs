@@ -3,8 +3,8 @@ use std::fmt::Display;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    attr, ensure, to_binary, Addr, Attribute, Binary, BlockInfo, ContractInfo, Deps, DepsMut, Env,
-    Order, StdError, StdResult, TransactionInfo, Uint128,
+    attr, ensure, to_binary, Addr, Attribute, Binary, Deps, DepsMut, Order, StdError, StdResult,
+    Timestamp, Uint128,
 };
 
 use cw_storage_plus::{Bound, Index, IndexList, IndexedMap, MultiIndex};
@@ -29,28 +29,6 @@ pub trait Status:
     fn is_updatable(&self) -> bool;
 }
 
-/// `TxId` is a wrapper around transaction id.
-/// This is used to differentiate between pending and confirmed transactions.
-#[cw_serde]
-pub enum TxId {
-    /// Pending transaction, not yet confirmed
-    Pending,
-
-    /// Confirmed transaction
-    Confirmed(String),
-}
-
-/// `Display` implementation for `TxId`
-/// mainly used for attribute contruction purpose
-impl std::fmt::Display for TxId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TxId::Pending => write!(f, "<pending>"),
-            TxId::Confirmed(tx_id) => write!(f, "{}", tx_id),
-        }
-    }
-}
-
 /// `RequestData` contains common data for any type of request.
 #[cw_serde]
 pub struct RequestData {
@@ -61,19 +39,13 @@ pub struct RequestData {
     pub amount: Uint128,
 
     /// BTC transaction id
-    pub tx_id: TxId,
+    pub tx_id: Option<String>,
 
     /// Deposit address to send BTC to
     pub deposit_address: String,
 
-    /// Block info at the time of the request issuance
-    pub block: BlockInfo,
-
-    /// Transaction info at the time of the request issuance
-    pub transaction: Option<TransactionInfo>,
-
-    /// Contract info of the contract that issued the request
-    pub contract: ContractInfo,
+    /// Timestamp for when the request was issued
+    pub timestamp: Timestamp,
 
     /// Nonce of the request
     pub nonce: Uint128,
@@ -96,36 +68,64 @@ impl From<&RequestData> for Vec<Attribute> {
             amount,
             tx_id,
             deposit_address,
-            block,
-            transaction,
+            timestamp,
             nonce,
-            // don't include contract info in attributes since it's already exists as `_contract_address` by default
-            contract: _,
         } = data;
-        vec![
+        let mut attrs = vec![
             attr("requester", requester.as_str()),
             attr("amount", amount.to_string()),
-            attr("tx_id", tx_id.to_string()),
             attr("deposit_address", deposit_address.as_str()),
-            attr("block_height", block.height.to_string()),
-            attr("timestamp", block.time.nanos().to_string()),
-            attr(
-                "transaction_index",
-                transaction
-                    .as_ref()
-                    .map(|t| t.index.to_string())
-                    .unwrap_or("none".to_string()),
-            ),
+            attr("timestamp", timestamp.nanos().to_string()),
             attr("nonce", nonce.to_string()),
-        ]
+        ];
+
+        // add tx_id if it exists
+        if let Some(tx_id) = tx_id {
+            attrs.push(attr("tx_id", tx_id.as_str()));
+        }
+
+        attrs
     }
 }
 
 /// `Request` contains common data for any type of request and its status.
+/// Since serde flatten does not work with cosmwasm contract, we duplicate
+/// `RequestData` fields here.
 #[cw_serde]
 pub struct Request<S> {
-    pub data: RequestData,
+    /// Address of the requester
+    pub requester: Addr,
+
+    /// Amount of tokens requested to perform requested operation
+    pub amount: Uint128,
+
+    /// BTC transaction id
+    pub tx_id: Option<String>,
+
+    /// Deposit address to send BTC to
+    pub deposit_address: String,
+
+    /// Timestamp for when the request was issued
+    pub timestamp: Timestamp,
+
+    /// Nonce of the request
+    pub nonce: Uint128,
+
+    /// Status of the request, each request type has its own status
     pub status: S,
+}
+
+impl<S> Request<S> {
+    pub fn data(self) -> RequestData {
+        RequestData {
+            requester: self.requester,
+            amount: self.amount,
+            tx_id: self.tx_id,
+            deposit_address: self.deposit_address,
+            timestamp: self.timestamp,
+            nonce: self.nonce,
+        }
+    }
 }
 
 /// `RequestWithHash` is a wrapper around `Request` that contains request hash.
@@ -170,16 +170,13 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> Self {
         let indexes = RequestIndexes {
             nonce: MultiIndex::new(
-                |_pk: &[u8], req: &Request<S>| req.data.nonce.to_be_bytes().to_vec(),
+                |_pk: &[u8], req: &Request<S>| req.nonce.to_be_bytes().to_vec(),
                 requests_namespace,
                 requests_nonce_idx_namespace,
             ),
             status_and_nonce: MultiIndex::new(
                 |_pk: &[u8], req: &Request<S>| {
-                    (
-                        req.status.to_string(),
-                        req.data.nonce.to_be_bytes().to_vec(),
-                    )
+                    (req.status.to_string(), req.nonce.to_be_bytes().to_vec())
                 },
                 requests_namespace,
                 requests_status_and_nonce_idx_namespace,
@@ -196,33 +193,23 @@ impl<'a, S: Status> RequestManager<'a, S> {
     pub fn issue(
         &self,
         mut deps: DepsMut,
-        env: Env,
         requester: Addr,
         amount: Uint128,
-        tx_id: TxId,
+        tx_id: Option<String>,
         deposit_address: String,
+        timestamp: Timestamp,
     ) -> Result<(String, Request<S>), ContractError> {
-        let Env {
-            block,
-            transaction,
-            contract,
-        } = env;
-
         let nonce = self.nonce.get_then_increase(deps.branch())?;
         let request = Request {
-            data: RequestData {
-                requester,
-                amount,
-                tx_id,
-                deposit_address,
-                block,
-                transaction,
-                contract,
-                nonce,
-            },
+            requester,
+            amount,
+            tx_id,
+            deposit_address,
+            timestamp,
+            nonce,
             status: S::initial(),
         };
-        let request_hash = request.data.hash()?.to_base64();
+        let request_hash = request.clone().data().hash()?.to_base64();
         self.requests
             .save(deps.storage, request_hash.clone(), &request)?;
         Ok((request_hash, request))
@@ -268,7 +255,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
     ) -> StdResult<Request<S>> {
         let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
-        request.data.tx_id = TxId::Confirmed(tx_id);
+        request.tx_id = Some(tx_id);
         self.requests
             .save(deps.storage, request_hash.to_string(), &request)?;
 
@@ -373,7 +360,7 @@ impl<'a, S: Status> RequestManager<'a, S> {
 #[cfg(test)]
 mod tests {
 
-    use cosmwasm_std::{testing::mock_dependencies, Timestamp};
+    use cosmwasm_std::testing::mock_dependencies;
 
     use super::*;
 
@@ -418,49 +405,25 @@ mod tests {
     #[test]
     fn test_hash_request() {
         let request = Request {
-            data: RequestData {
-                requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
-                amount: Uint128::new(100),
-                tx_id: TxId::Confirmed(
-                    "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-                ),
-                deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-                block: BlockInfo {
-                    height: 1,
-                    time: Timestamp::from_seconds(1689069540),
-                    chain_id: "osmosis-1".to_string(),
-                },
-                transaction: Some(TransactionInfo { index: 1 }),
-                contract: ContractInfo {
-                    address: Addr::unchecked(
-                        "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                    ),
-                },
-                nonce: Uint128::new(3),
-            },
+            requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
+            amount: Uint128::new(100),
+            tx_id: Some(
+                "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
+            ),
+            deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
+            timestamp: Timestamp::from_seconds(1689069540).plus_nanos(123456),
+            nonce: Uint128::new(3),
             status: TestRequestStatus::Pending,
         };
 
-        let struct_hash = request.data.hash().unwrap();
+        let struct_hash = request.data().hash().unwrap();
 
         let request_string = r#"{
             "requester": "osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks",
             "amount": "100",
-            "tx_id": {
-                "confirmed": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
-            },
+            "tx_id": "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf",
             "deposit_address": "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun",
-            "block": {
-                "height": 1,
-                "time": "1689069540000000000",
-                "chain_id": "osmosis-1"
-            },
-            "transaction": {
-                "index": 1
-            },
-            "contract": {
-                "address": "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9"
-            },
+            "timestamp": "1689069540000123456",
             "nonce": "3"
         }"#;
 
@@ -478,25 +441,17 @@ mod tests {
     fn test_list_requests() {
         let mut deps = mock_dependencies();
 
-        let base_request_data = RequestData {
+        let base_request = Request {
             requester: Addr::unchecked("osmo1cyyzpxplxdzkeea7kwsydadg87357qnahakaks"),
             amount: Uint128::new(100),
-            tx_id: TxId::Confirmed(
+            tx_id: Some(
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
             ),
             deposit_address: "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
-            block: BlockInfo {
-                height: 1,
-                time: Timestamp::from_seconds(1689069540),
-                chain_id: "osmosis-1".to_string(),
-            },
-            transaction: Some(TransactionInfo { index: 1 }),
-            contract: ContractInfo {
-                address: Addr::unchecked(
-                    "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                ),
-            },
+
+            timestamp: Timestamp::from_seconds(10000000000),
             nonce: Uint128::new(3),
+            status: TestRequestStatus::Pending,
         };
 
         let mut requests: Vec<RequestWithHash<TestRequestStatus>> = Vec::new();
@@ -511,13 +466,11 @@ mod tests {
             }
 
             let request = Request {
-                data: RequestData {
-                    nonce: Uint128::new(i),
-                    ..base_request_data.clone()
-                },
+                nonce: Uint128::new(i),
                 status,
+                ..base_request.clone()
             };
-            let request_hash = request.data.hash().unwrap().to_base64();
+            let request_hash = request.clone().data().hash().unwrap().to_base64();
             requests.push(RequestWithHash {
                 request_hash: request_hash.clone(),
                 request: request.clone(),

@@ -2,8 +2,8 @@
 use std::fmt::Display;
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     tokenfactory::request::RequestData,
     ContractError,
 };
@@ -15,7 +15,8 @@ use cosmwasm_std::{
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::{
-    request::{Request, RequestManager, RequestWithHash, Status, TxId},
+    deposit_address,
+    request::{Request, RequestManager, RequestWithHash, Status},
     token,
 };
 
@@ -81,24 +82,29 @@ fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
 /// The mint request can be cancelled by the merchant.
 pub fn issue_mint_request(
     deps: DepsMut,
-    info: MessageInfo,
     env: Env,
+    info: MessageInfo,
     amount: Uint128,
     tx_id: String,
-    deposit_address: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
 
+    let deposit_address =
+        deposit_address::get_custodian_deposit_address(deps.as_ref(), &info.sender)?;
+
     let (request_hash, request) = mint_requests().issue(
         deps,
-        env,
         info.sender,
         amount,
-        TxId::Confirmed(tx_id),
+        Some(tx_id),
         deposit_address,
+        env.block.time,
     )?;
 
-    let mut attrs = action_attrs("issue_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs(
+        "issue_mint_request",
+        <Vec<Attribute>>::from(&request.data()),
+    );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -109,7 +115,6 @@ pub fn issue_mint_request(
 pub fn cancel_mint_request(
     deps: DepsMut,
     info: MessageInfo,
-    contract_address: Addr,
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
@@ -121,16 +126,8 @@ pub fn cancel_mint_request(
         |request| {
             // ensure sender is the requester
             ensure!(
-                request.data.requester == info.sender,
+                request.requester == info.sender,
                 ContractError::Unauthorized {}
-            );
-
-            // ensure contract address matched request's contract address
-            ensure!(
-                request.data.contract.address == contract_address,
-                ContractError::Std(cosmwasm_std::StdError::generic_err(
-                    "unreachable: contract address mismatch"
-                ))
             );
 
             Ok(())
@@ -138,7 +135,10 @@ pub fn cancel_mint_request(
     )?;
 
     // construct event attributes
-    let mut attrs = action_attrs("cancel_mint_request", <Vec<Attribute>>::from(&request.data));
+    let mut attrs = action_attrs(
+        "cancel_mint_request",
+        <Vec<Attribute>>::from(&request.data()),
+    );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_attributes(attrs))
@@ -159,21 +159,15 @@ pub fn approve_mint_request(
             deps.branch(),
             &request_hash,
             MintRequestStatus::Approved,
-            |request| {
-                ensure!(
-                    request.data.contract.address == contract_address,
-                    ContractError::Std(cosmwasm_std::StdError::generic_err(
-                        "unreachable: contract address mismatch"
-                    ))
-                );
-
-                Ok(())
-            },
+            |_| Ok(()),
         )?
-        .data;
+        .data();
 
     // construct event attributes
-    let mut attrs = action_attrs("approve_mint_request", <Vec<Attribute>>::from(&request_data));
+    let mut attrs = action_attrs(
+        "approve_mint_request",
+        <Vec<Attribute>>::from(&request_data),
+    );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
     let RequestData {
@@ -198,27 +192,15 @@ pub fn approve_mint_request(
 pub fn reject_mint_request(
     deps: DepsMut,
     info: MessageInfo,
-    contract_address: Addr,
+
     request_hash: String,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
     let request_data = mint_requests()
-        .check_and_update_request_status(
-            deps,
-            &request_hash,
-            MintRequestStatus::Rejected,
-            |request| {
-                ensure!(
-                    request.data.contract.address == contract_address,
-                    ContractError::Std(cosmwasm_std::StdError::generic_err(
-                        "unreachable: contract address mismatch"
-                    ))
-                );
-
-                Ok(())
-            },
-        )?
-        .data;
+        .check_and_update_request_status(deps, &request_hash, MintRequestStatus::Rejected, |_| {
+            Ok(())
+        })?
+        .data();
 
     let mut attrs = action_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
     attrs.extend(vec![attr("request_hash", request_hash)]);
@@ -252,56 +234,59 @@ mod tests {
     use super::*;
     use cosmwasm_std::{
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, BlockInfo, Coin, DepsMut, Env, Response, StdError, SubMsg, Timestamp,
-        TransactionInfo, Uint128,
+        Addr, Coin, DepsMut, Response, StdError, SubMsg, Uint128,
     };
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
     use crate::{
-        auth::{custodian, merchant, owner},
-        contract,
-        helpers::test_helpers::setup_contract,
-        ContractError,
+        attrs::tests::setup_contract,
+        auth::{custodian, governor, member_manager, merchant},
+        contract, ContractError,
     };
 
     #[test]
     fn test_issue_mint_request() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
+
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
 
         let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
             issue_mint_request(
                 deps,
+                mock_env(),
                 mock_info(sender, &[]),
-                Env {
-                    block: BlockInfo {
-                        height: 1,
-                        time: Timestamp::from_seconds(1689069540),
-                        chain_id: "osmosis-1".to_string(),
-                    },
-                    transaction: Some(TransactionInfo { index: 1 }),
-                    contract: cosmwasm_std::ContractInfo {
-                        address: Addr::unchecked(
-                            "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9",
-                        ),
-                    },
-                },
                 Uint128::new(100_000_000),
                 "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-                "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
             )
         };
 
         // add mint request fail with unauthorized if not merchant
         assert_eq!(
-            issue_mint_request_fixture(deps.as_mut(), owner).unwrap_err(),
+            issue_mint_request_fixture(deps.as_mut(), governor).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
@@ -310,7 +295,7 @@ mod tests {
             ContractError::Unauthorized {}
         );
 
-        let hash_on_nonce_0 = "cC2AqyP3sgYXmlq+QfOZ+VWucw9HVj/tw2CkqPE6h9E=";
+        let hash_on_nonce_0 = "5FbsBhznfQIx8X8kzYsCsSuxWytfbL1+sUqYohcX1xI=";
 
         assert_eq!(
             issue_mint_request_fixture(deps.as_mut(), merchant).unwrap(),
@@ -318,18 +303,13 @@ mod tests {
                 .add_attribute("action", "issue_mint_request")
                 .add_attribute("requester", merchant)
                 .add_attribute("amount", "100000000")
+                .add_attribute("deposit_address", custodian_deposit_address)
+                .add_attribute("timestamp", mock_env().block.time.nanos().to_string())
+                .add_attribute("nonce", "0")
                 .add_attribute(
                     "tx_id",
                     "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf"
                 )
-                .add_attribute(
-                    "deposit_address",
-                    "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun"
-                )
-                .add_attribute("block_height", "1")
-                .add_attribute("timestamp", "1689069540000000000")
-                .add_attribute("transaction_index", "1")
-                .add_attribute("nonce", "0")
                 .add_attribute("request_hash", hash_on_nonce_0)
         );
 
@@ -338,9 +318,12 @@ mod tests {
             .get_request(deps.as_ref(), hash_on_nonce_0)
             .unwrap();
 
-        assert_eq!(request.data.nonce, Uint128::new(0));
+        assert_eq!(request.nonce, Uint128::new(0));
         assert_eq!(request.status, MintRequestStatus::Pending);
-        assert_eq!(request.data.hash().unwrap().to_base64(), hash_on_nonce_0);
+        assert_eq!(
+            request.clone().data().hash().unwrap().to_base64(),
+            hash_on_nonce_0
+        );
 
         let (request_hash_by_nonce, request_by_nonce) =
             get_mint_request_by_nonce(deps.as_ref(), &Uint128::new(0)).unwrap();
@@ -385,38 +368,45 @@ mod tests {
 
     #[test]
     fn test_cancel_mint_request() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         let amount = Uint128::new(100_000_000);
 
         // setup
-        setup_contract(deps.as_mut(), contract, owner, "wbtc").unwrap();
+        setup_contract(deps.as_mut(), contract, governor, "wbtc").unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
+
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
 
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
-            Env {
-                block: BlockInfo {
-                    height: 1,
-                    time: Timestamp::from_seconds(1689069540),
-                    chain_id: "osmosis-1".to_string(),
-                },
-                transaction: Some(TransactionInfo { index: 1 }),
-                contract: cosmwasm_std::ContractInfo {
-                    address: Addr::unchecked(contract),
-                },
-            },
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 
@@ -431,8 +421,7 @@ mod tests {
         // cancel mint request fail with unauthorized if not requester
         let err = cancel_mint_request(
             deps.as_mut(),
-            mock_info(owner, &[]),
-            Addr::unchecked(contract),
+            mock_info(governor, &[]),
             request_hash.clone(),
         )
         .unwrap_err();
@@ -440,49 +429,50 @@ mod tests {
         assert_eq!(err, ContractError::Unauthorized {});
 
         // cancel mint request succeed if requester
-        cancel_mint_request(
-            deps.as_mut(),
-            mock_info(merchant, &[]),
-            Addr::unchecked(contract),
-            request_hash,
-        )
-        .unwrap();
+        cancel_mint_request(deps.as_mut(), mock_info(merchant, &[]), request_hash).unwrap();
     }
 
     #[test]
     fn test_approve_mint_request() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
         let amount = Uint128::new(100_000_000);
 
         // setup
-        let denom = setup_contract(deps.as_mut(), contract, owner, "wbtc").unwrap();
+        let denom = setup_contract(deps.as_mut(), contract, governor, "wbtc").unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
+
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
 
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
-            Env {
-                block: BlockInfo {
-                    height: 1,
-                    time: Timestamp::from_seconds(1689069540),
-                    chain_id: "osmosis-1".to_string(),
-                },
-                transaction: Some(TransactionInfo { index: 1 }),
-                contract: cosmwasm_std::ContractInfo {
-                    address: Addr::unchecked(contract),
-                },
-            },
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 
@@ -559,48 +549,55 @@ mod tests {
 
     #[test]
     fn test_reject_mint_request() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
-        let contract = "osmo14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sq2r9g9";
+        let custodian_deposit_address = "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun";
         let mut deps = mock_dependencies();
 
-        let denom = "factory/osmo1owner/wbtc";
+        let denom = "factory/osmo1governor/wbtc";
         let amount = Uint128::new(100_000_000);
 
         // setup
         contract::instantiate(
             deps.as_mut(),
             mock_env(),
-            mock_info(owner, &[]),
+            mock_info(governor, &[]),
             crate::msg::InstantiateMsg {
-                owner: owner.to_string(),
+                governor: governor.to_string(),
                 subdenom: denom.to_string(),
             },
         )
         .unwrap();
 
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
+
+        // set custodian deposit address
+        deposit_address::set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian, &[]),
+            merchant,
+            custodian_deposit_address,
+        )
+        .unwrap();
 
         // add mint request
         let res = issue_mint_request(
             deps.as_mut(),
+            mock_env(),
             mock_info(merchant, &[]),
-            Env {
-                block: BlockInfo {
-                    height: 1,
-                    time: Timestamp::from_seconds(1689069540),
-                    chain_id: "osmosis-1".to_string(),
-                },
-                transaction: Some(TransactionInfo { index: 1 }),
-                contract: cosmwasm_std::ContractInfo {
-                    address: Addr::unchecked(contract),
-                },
-            },
             amount,
             "44e25bc0ed840f9bf0e58d6227db15192d5b89e79ba4304da16b09703f68ceaf".to_string(),
-            "bc1qzmylp874rg2st6pdlt8yjga3ek9pr96wuzelun".to_string(),
         )
         .unwrap();
 
@@ -616,7 +613,6 @@ mod tests {
         let err = reject_mint_request(
             deps.as_mut(),
             mock_info(custodian, &[]),
-            Addr::unchecked(contract),
             "non-existing-request-hash".to_string(),
         )
         .unwrap_err();
@@ -630,7 +626,6 @@ mod tests {
         let err = reject_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
-            Addr::unchecked(contract),
             "non-existing-request-hash".to_string(),
         )
         .unwrap_err();
@@ -641,7 +636,6 @@ mod tests {
         let err = reject_mint_request(
             deps.as_mut(),
             mock_info(merchant, &[]),
-            Addr::unchecked(contract),
             request_hash.clone(),
         )
         .unwrap_err();
@@ -652,7 +646,6 @@ mod tests {
         let _res = reject_mint_request(
             deps.as_mut(),
             mock_info(custodian, &[]),
-            Addr::unchecked(contract),
             request_hash.clone(),
         )
         .unwrap();

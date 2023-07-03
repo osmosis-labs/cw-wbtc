@@ -22,7 +22,7 @@ use wbtc_controller::{
         GetTokenDenomResponse, InstantiateMsg, IsPausedResponse, ListBurnRequestsResponse,
         ListMintRequestsResponse, QueryMsg,
     },
-    BurnRequestStatus, MintRequestStatus, TxId,
+    BurnRequestStatus, MintRequestStatus,
 };
 
 pub struct WBTC<'a> {
@@ -96,17 +96,17 @@ fn test_set_denom_metadata() {
     let accs = app
         .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 2)
         .unwrap();
-    let owner = &accs[0];
+    let governor = &accs[0];
     let other = &accs[1];
 
     let wbtc = WBTC::deploy(
         &app,
         &InstantiateMsg {
-            owner: owner.address(),
+            governor: governor.address(),
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        owner,
+        governor,
     )
     .unwrap();
 
@@ -166,7 +166,7 @@ fn test_set_denom_metadata() {
         symbol: "WBTC".to_string(),
     };
 
-    // set denom metadata by non owner should fail
+    // set denom metadata by non governor should fail
     let err = wbtc
         .execute(
             &ExecuteMsg::SetDenomMetadata {
@@ -184,13 +184,13 @@ fn test_set_denom_metadata() {
         }
     );
 
-    // set denom metadata by owner should succeed
+    // set denom metadata by governor should succeed
     wbtc.execute(
         &ExecuteMsg::SetDenomMetadata {
             metadata: updated_metadata.clone(),
         },
         &[],
-        owner,
+        governor,
     )
     .unwrap();
 
@@ -235,18 +235,19 @@ fn test_mint_and_burn() {
     let accs = app
         .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 4)
         .unwrap();
-    let owner = &accs[0];
-    let custodian = &accs[1];
-    let merchant = &accs[2];
+    let governor = &accs[0];
+    let member_manager = &accs[1];
+    let custodian = &accs[2];
+    let merchant = &accs[3];
 
     let wbtc = WBTC::deploy(
         &app,
         &InstantiateMsg {
-            owner: owner.address(),
+            governor: governor.address(),
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        owner,
+        governor,
     )
     .unwrap();
 
@@ -269,13 +270,23 @@ fn test_mint_and_burn() {
         "0"
     );
 
+    // set member manager
+    wbtc.execute(
+        &ExecuteMsg::SetMemberManager {
+            address: member_manager.address(),
+        },
+        &[],
+        governor,
+    )
+    .unwrap();
+
     // set custodian
     wbtc.execute(
         &ExecuteMsg::SetCustodian {
             address: custodian.address(),
         },
         &[],
-        owner,
+        member_manager,
     )
     .unwrap();
 
@@ -285,7 +296,7 @@ fn test_mint_and_burn() {
             address: merchant.address(),
         },
         &[],
-        owner,
+        member_manager,
     )
     .unwrap();
 
@@ -316,7 +327,6 @@ fn test_mint_and_burn() {
         &ExecuteMsg::IssueMintRequest {
             amount,
             tx_id: "tx_id_1".to_string(),
-            deposit_address: format!("bc1{}", merchant.address()),
         },
         &[],
         merchant,
@@ -343,7 +353,7 @@ fn test_mint_and_burn() {
 
     let res_by_nonce = wbtc
         .query::<GetMintRequestByNonceResponse>(&QueryMsg::GetMintRequestByNonce {
-            nonce: req.request.data.nonce,
+            nonce: req.request.nonce,
         })
         .unwrap()
         .request;
@@ -425,15 +435,15 @@ fn test_mint_and_burn() {
 
     let res_by_nonce = wbtc
         .query::<GetBurnRequestByNonceResponse>(&QueryMsg::GetBurnRequestByNonce {
-            nonce: req.request.data.nonce,
+            nonce: req.request.nonce,
         })
         .unwrap()
         .request;
 
     assert_eq!(req_by_hash, req.request);
     assert_eq!(res_by_nonce, req.request);
-    assert_eq!(req.request.status, BurnRequestStatus::Executed);
-    assert_eq!(req.request.data.tx_id, TxId::Pending);
+    assert_eq!(req.request.status, BurnRequestStatus::Pending);
+    assert_eq!(req.request.tx_id, None);
 
     // check supply
     assert_eq!(
@@ -477,9 +487,8 @@ fn test_mint_and_burn() {
         })
         .unwrap()
         .request
-        .data
         .tx_id,
-        TxId::Confirmed("tx_id_2".to_string())
+        Some("tx_id_2".to_string())
     );
 
     // set min burn amount
@@ -492,7 +501,7 @@ fn test_mint_and_burn() {
                 amount: min_burn_amount,
             },
             &[],
-            owner,
+            governor,
         )
         .unwrap_err();
 
@@ -580,19 +589,20 @@ fn test_token_pause_and_unpause_transfer() {
     let accs = app
         .init_accounts(&[Coin::new(100_000_000_000, "uosmo")], 5)
         .unwrap();
-    let owner = &accs[0];
-    let custodian = &accs[1];
-    let merchant = &accs[2];
-    let other = &accs[3];
+    let governor = &accs[0];
+    let member_manager = &accs[1];
+    let custodian = &accs[2];
+    let merchant = &accs[3];
+    let other = &accs[4];
 
     let wbtc = WBTC::deploy(
         &app,
         &InstantiateMsg {
-            owner: owner.address(),
+            governor: governor.address(),
             subdenom: "wbtc".to_string(),
         },
         &[Coin::new(10000000, "uosmo")],
-        owner,
+        governor,
     )
     .unwrap();
 
@@ -601,13 +611,23 @@ fn test_token_pause_and_unpause_transfer() {
         .query::<GetTokenDenomResponse>(&QueryMsg::GetTokenDenom {})
         .unwrap();
 
+    // set member manager
+    wbtc.execute(
+        &ExecuteMsg::SetMemberManager {
+            address: member_manager.address(),
+        },
+        &[],
+        governor,
+    )
+    .unwrap();
+
     // set custodian
     wbtc.execute(
         &ExecuteMsg::SetCustodian {
             address: custodian.address(),
         },
         &[],
-        owner,
+        member_manager,
     )
     .unwrap();
 
@@ -617,7 +637,7 @@ fn test_token_pause_and_unpause_transfer() {
             address: merchant.address(),
         },
         &[],
-        owner,
+        member_manager,
     )
     .unwrap();
 
@@ -649,7 +669,6 @@ fn test_token_pause_and_unpause_transfer() {
             &ExecuteMsg::IssueMintRequest {
                 amount,
                 tx_id: "tx_id_1".to_string(),
-                deposit_address: format!("bc1{}", merchant.address()),
             },
             &[],
             merchant,
@@ -729,7 +748,7 @@ fn test_token_pause_and_unpause_transfer() {
     );
 
     // pause transfer
-    wbtc.execute(&ExecuteMsg::Pause {}, &[], owner).unwrap();
+    wbtc.execute(&ExecuteMsg::Pause {}, &[], governor).unwrap();
 
     // check is paused
     let IsPausedResponse { is_paused } = wbtc
@@ -779,7 +798,8 @@ fn test_token_pause_and_unpause_transfer() {
     );
 
     // unpause
-    wbtc.execute(&ExecuteMsg::Unpause {}, &[], owner).unwrap();
+    wbtc.execute(&ExecuteMsg::Unpause {}, &[], governor)
+        .unwrap();
 
     // check is paused
     let IsPausedResponse { is_paused } = wbtc

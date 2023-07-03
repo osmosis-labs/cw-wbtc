@@ -8,8 +8,8 @@ use osmosis_std::types::{
 };
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     ContractError,
 };
 
@@ -28,14 +28,14 @@ pub fn get_token_denom(storage: &dyn Storage) -> StdResult<String> {
 }
 
 /// Set denom metadata.
-/// Only the owner can set the denom metadata.
+/// Only the governor can set the denom metadata.
 pub fn set_denom_metadata(
     deps: Deps,
     env: &Env,
     info: &MessageInfo,
     metadata: Metadata,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Owner], &info.sender, deps)?;
+    allow_only(&[Role::Governor], &info.sender, deps)?;
 
     let attrs = action_attrs(
         "set_denom_metadata",
@@ -62,7 +62,7 @@ const IS_PAUSED: Item<bool> = Item::new("is_paused");
 
 /// Set the pause status.
 pub fn pause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
-    allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
 
     IS_PAUSED.save(deps.storage, &true)?;
 
@@ -73,7 +73,7 @@ pub fn pause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractErro
 
 /// Unset the pause status.
 pub fn unpause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {
-    allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
 
     IS_PAUSED.save(deps.storage, &false)?;
 
@@ -97,21 +97,29 @@ mod tests {
     use osmosis_std::types::cosmos::bank::v1beta1::Metadata;
 
     use crate::{
-        auth::{custodian, merchant, owner},
+        auth::{custodian, governor, member_manager, merchant},
         ContractError,
     };
 
     #[test]
-    fn test_only_owner_can_set_denom_metadata() {
-        let owner = "osmo1owner";
+    fn test_only_governor_can_set_denom_metadata() {
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         let metadata = Metadata {
             description: "description".to_string(),
@@ -147,7 +155,7 @@ mod tests {
         let msgs = set_denom_metadata(
             deps.as_ref(),
             &mock_env(),
-            &mock_info(owner, &[]),
+            &mock_info(governor, &[]),
             metadata.clone(),
         )
         .unwrap()
@@ -163,16 +171,24 @@ mod tests {
     }
 
     #[test]
-    fn test_only_owner_can_pause_and_unpause() {
-        let owner = "osmo1owner";
+    fn test_only_governor_can_pause_and_unpause() {
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // default status is not paused
         assert!(!is_paused(deps.as_ref()).unwrap());
@@ -188,7 +204,7 @@ mod tests {
         );
 
         assert_eq!(
-            pause(deps.as_mut(), &mock_info(owner, &[])).unwrap(),
+            pause(deps.as_mut(), &mock_info(governor, &[])).unwrap(),
             Response::new().add_attributes(vec![attr("action", "pause")])
         );
 
@@ -206,7 +222,7 @@ mod tests {
         );
 
         assert_eq!(
-            unpause(deps.as_mut(), &mock_info(owner, &[])).unwrap(),
+            unpause(deps.as_mut(), &mock_info(governor, &[])).unwrap(),
             Response::new().add_attributes(vec![attr("action", "unpause")])
         );
 

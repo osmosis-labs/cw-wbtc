@@ -2,7 +2,7 @@
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 use cw_storage_plus::Item;
 
-use crate::{helpers::action_attrs, ContractError};
+use crate::{attrs::action_attrs, ContractError};
 
 use super::{allow_only, Role};
 
@@ -15,7 +15,7 @@ pub fn set_custodian(
     info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
-    allow_only(&[Role::Owner], &info.sender, deps.as_ref())?;
+    allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
     CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
 
@@ -42,20 +42,28 @@ pub fn get_custodian(deps: Deps) -> Result<Addr, StdError> {
 mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
 
-    use crate::auth::owner::initialize_owner;
+    use crate::auth::{governor::initialize_governor, member_manager};
 
     use super::*;
 
     #[test]
     fn test_manage_custodian() {
         let mut deps = mock_dependencies();
-        let owner = "osmo1owner";
-        let non_owner = "osmo1nonowner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
+        let non_member_manager = "osmo1nonmembermanager";
         let custodian_address = "osmo1custodian";
         let non_custodian_address = "osmo1noncustodian";
 
         // setup
-        initialize_owner(deps.as_mut(), owner).unwrap();
+        initialize_governor(deps.as_mut(), governor).unwrap();
+
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
 
         // check before set will fail
         assert!(!is_custodian(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap());
@@ -63,16 +71,24 @@ mod tests {
         let err = get_custodian(deps.as_ref()).unwrap_err();
         assert_eq!(err, StdError::not_found("Custodian"));
 
-        // set custodian by non owner should fail
-        let err = set_custodian(deps.as_mut(), &mock_info(non_owner, &[]), custodian_address)
-            .unwrap_err();
+        // set custodian by non governor should fail
+        let err = set_custodian(
+            deps.as_mut(),
+            &mock_info(non_member_manager, &[]),
+            custodian_address,
+        )
+        .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // set custodian
         assert_eq!(
-            set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian_address)
-                .unwrap()
-                .attributes,
+            set_custodian(
+                deps.as_mut(),
+                &mock_info(member_manager, &[]),
+                custodian_address
+            )
+            .unwrap()
+            .attributes,
             vec![
                 attr("action", "set_custodian"),
                 attr("address", custodian_address)

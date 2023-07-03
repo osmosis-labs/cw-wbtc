@@ -5,7 +5,7 @@
 */
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { Coin, StdFee } from "@cosmjs/amino";
-import { Uint128, Metadata, MintRequestStatus, BurnRequestStatus, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse, GetBurnRequestsCountResponse, GetCustodianResponse, GetCustodianDepositAddressResponse, GetMerchantDepositAddressResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse } from "./WbtcController.types";
+import { Uint128, Metadata, MintRequestStatus, BurnRequestStatus, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse, GetBurnRequestsCountResponse, GetCustodianResponse, GetCustodianDepositAddressResponse, GetGovernorResponse, GetMemberManagerResponse, GetMerchantDepositAddressResponse, GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetTokenDenomResponse, IsCustodianResponse, IsGovernorResponse, IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse } from "./WbtcController.types";
 export interface WbtcControllerReadOnlyInterface {
     contractAddress: string;
     getMintRequestByNonce: ({ nonce }: {
@@ -32,6 +32,7 @@ export interface WbtcControllerReadOnlyInterface {
         startAfterNonce?: Uint128;
         status?: BurnRequestStatus;
     }) => Promise<ListBurnRequestsResponse>;
+    getMinBurnAmount: () => Promise<GetMinBurnAmountResponse>;
     getTokenDenom: () => Promise<GetTokenDenomResponse>;
     isMerchant: ({ address }: {
         address: string;
@@ -40,20 +41,25 @@ export interface WbtcControllerReadOnlyInterface {
         limit?: number;
         startAfter?: string;
     }) => Promise<ListMerchantsResponse>;
+    isMemberManager: ({ address }: {
+        address: string;
+    }) => Promise<IsMemberManagerResponse>;
+    getMemberManager: () => Promise<GetMemberManagerResponse>;
     isCustodian: ({ address }: {
         address: string;
     }) => Promise<IsCustodianResponse>;
     getCustodian: () => Promise<GetCustodianResponse>;
-    getOwner: () => Promise<GetOwnerResponse>;
-    isOwner: ({ address }: {
+    getGovernor: () => Promise<GetGovernorResponse>;
+    isGovernor: ({ address }: {
         address: string;
-    }) => Promise<IsOwnerResponse>;
+    }) => Promise<IsGovernorResponse>;
     getCustodianDepositAddress: ({ merchant }: {
         merchant: string;
     }) => Promise<GetCustodianDepositAddressResponse>;
     getMerchantDepositAddress: ({ merchant }: {
         merchant: string;
     }) => Promise<GetMerchantDepositAddressResponse>;
+    isPaused: () => Promise<IsPausedResponse>;
 }
 export declare class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterface {
     client: CosmWasmClient;
@@ -83,6 +89,7 @@ export declare class WbtcControllerQueryClient implements WbtcControllerReadOnly
         startAfterNonce?: Uint128;
         status?: BurnRequestStatus;
     }) => Promise<ListBurnRequestsResponse>;
+    getMinBurnAmount: () => Promise<GetMinBurnAmountResponse>;
     getTokenDenom: () => Promise<GetTokenDenomResponse>;
     isMerchant: ({ address }: {
         address: string;
@@ -91,26 +98,34 @@ export declare class WbtcControllerQueryClient implements WbtcControllerReadOnly
         limit?: number;
         startAfter?: string;
     }) => Promise<ListMerchantsResponse>;
+    isMemberManager: ({ address }: {
+        address: string;
+    }) => Promise<IsMemberManagerResponse>;
+    getMemberManager: () => Promise<GetMemberManagerResponse>;
     isCustodian: ({ address }: {
         address: string;
     }) => Promise<IsCustodianResponse>;
     getCustodian: () => Promise<GetCustodianResponse>;
-    getOwner: () => Promise<GetOwnerResponse>;
-    isOwner: ({ address }: {
+    getGovernor: () => Promise<GetGovernorResponse>;
+    isGovernor: ({ address }: {
         address: string;
-    }) => Promise<IsOwnerResponse>;
+    }) => Promise<IsGovernorResponse>;
     getCustodianDepositAddress: ({ merchant }: {
         merchant: string;
     }) => Promise<GetCustodianDepositAddressResponse>;
     getMerchantDepositAddress: ({ merchant }: {
         merchant: string;
     }) => Promise<GetMerchantDepositAddressResponse>;
+    isPaused: () => Promise<IsPausedResponse>;
 }
 export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface {
     contractAddress: string;
     sender: string;
-    transferOwnership: ({ newOwnerAddress }: {
-        newOwnerAddress: string;
+    transferGovernorship: ({ newGovernorAddress }: {
+        newGovernorAddress: string;
+    }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    setMemberManager: ({ address }: {
+        address: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     setCustodian: ({ address }: {
         address: string;
@@ -128,9 +143,8 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
     setMerchantDepositAddress: ({ depositAddress }: {
         depositAddress: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    issueMintRequest: ({ amount, depositAddress, txId }: {
+    issueMintRequest: ({ amount, txId }: {
         amount: Uint128;
-        depositAddress: string;
         txId: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     cancelMintRequest: ({ requestHash }: {
@@ -149,17 +163,25 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
         requestHash: string;
         txId: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    setMinBurnAmount: ({ amount }: {
+        amount: Uint128;
+    }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     setDenomMetadata: ({ metadata }: {
         metadata: Metadata;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    pause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    unpause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
 }
 export declare class WbtcControllerClient extends WbtcControllerQueryClient implements WbtcControllerInterface {
     client: SigningCosmWasmClient;
     sender: string;
     contractAddress: string;
     constructor(client: SigningCosmWasmClient, sender: string, contractAddress: string);
-    transferOwnership: ({ newOwnerAddress }: {
-        newOwnerAddress: string;
+    transferGovernorship: ({ newGovernorAddress }: {
+        newGovernorAddress: string;
+    }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    setMemberManager: ({ address }: {
+        address: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     setCustodian: ({ address }: {
         address: string;
@@ -177,9 +199,8 @@ export declare class WbtcControllerClient extends WbtcControllerQueryClient impl
     setMerchantDepositAddress: ({ depositAddress }: {
         depositAddress: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
-    issueMintRequest: ({ amount, depositAddress, txId }: {
+    issueMintRequest: ({ amount, txId }: {
         amount: Uint128;
-        depositAddress: string;
         txId: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     cancelMintRequest: ({ requestHash }: {
@@ -198,8 +219,13 @@ export declare class WbtcControllerClient extends WbtcControllerQueryClient impl
         requestHash: string;
         txId: string;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    setMinBurnAmount: ({ amount }: {
+        amount: Uint128;
+    }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
     setDenomMetadata: ({ metadata }: {
         metadata: Metadata;
     }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    pause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+    unpause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
 }
 //# sourceMappingURL=WbtcController.client.d.ts.map

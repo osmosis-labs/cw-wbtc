@@ -8,7 +8,7 @@ The original WBTC contracts is implemented with 4 separated contracts – `contr
 
 ### Token Implementation
 
-The origial WBTC is implemented as a ERC20 token which has been de facto standard on Ethereum for implementing token. However, on Osmosis, we can implement the token as native token through [`x/tokenfactory`](https://github.com/osmosis-labs/osmosis/tree/main/x/tokenfactory) module which reduce discrepancies between the native token and contract-based token like ERC20. 
+The origial WBTC is implemented as a ERC20 token which has been de facto standard on Ethereum for implementing token. However, on Osmosis, we can implement the token as native token through [`x/tokenfactory`](https://github.com/osmosis-labs/osmosis/tree/main/x/tokenfactory) module which reduce discrepancies between the native token and contract-based token like ERC20.
 
 This is what happens on contract initialization:
 ```mermaid
@@ -31,7 +31,7 @@ Thus it does the job of `token` and `factory` contract in the original WBTC cont
 
 ### Membership and Controller
 
-Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of merchants, custodian and the owner who can update the membership in the contract's state (TBD). Even if the owner is a multisig or a DAO, it still can be referenced as a single address in the contract.
+Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of merchants, custodian and the governor who can update the membership in the contract's state (TBD). Even if the governor is a multisig or a DAO, it still can be referenced as a single address in the contract.
 
 For the original [`Controller.sol`](https://github.com/WrappedBTC/bitcoin-token-smart-contracts/blob/master/ethereumV2/contracts/controller/Controller.sol) contract, it is there only to wire all the contracts together which is not necessary since we only have single contract. So we can just ignore it.
 
@@ -103,17 +103,19 @@ beaker console --network local
 Setup console environment
 ```js
 wbtc = contract['wbtc-controller']
-owner = wbtc.signer(test1)
-custodian = wbtc.signer(test2)
-merchants = [wbtc.signer(test3), wbtc.signer(test4)]
+governor = wbtc.signer(test1)
+memberManager = wbtc.signer(test2)
+custodian = wbtc.signer(test3)
+merchants = [wbtc.signer(test4), wbtc.signer(test5)]
 ```
 
 Check if the roles are set correctly
 ```js
-await wbtc.isOwner({ address: test1.address }) // => { is_owner: true }
-await wbtc.isCustodian({ address: test2.address }) // => { is_custodian: true }
-await wbtc.isMerchant({ address: test3.address }) // => { is_merchant: true }
+await wbtc.isGovernor({ address: test1.address }) // => { is_governor: true }
+await wbtc.isMemberManager({ address: test2.address }) // => { is_member_manager: true }
+await wbtc.isCustodian({ address: test3.address }) // => { is_custodian: true }
 await wbtc.isMerchant({ address: test4.address }) // => { is_merchant: true }
+await wbtc.isMerchant({ address: test5.address }) // => { is_merchant: true }
 ```
 
 Try executing a contract and check the emitted events
@@ -137,7 +139,7 @@ console.dir(result.logs[0].events, {depth: null})
 //     attributes: [
 //       {
 //         key: '_contract_address',
-//         value: 'osmo19y9uedlq0cpugg5a5jtxn8vs5rdwepnk7v863qmyc0p0899dfxxq5r8q8u'
+//         value: 'osmo13we0myxwzlpx8l5ark8elw5gj5d59dl6cjkzmt80c5q5cv5rt54qcslsrc'
 //       }
 //     ]
 //   },
@@ -148,7 +150,7 @@ console.dir(result.logs[0].events, {depth: null})
 //       { key: 'module', value: 'wasm' },
 //       {
 //         key: 'sender',
-//         value: 'osmo1qwexv7c6sm95lwhzn9027vyu2ccneaqad4w8ka'
+//         value: 'osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
 //       }
 //     ]
 //   },
@@ -157,23 +159,23 @@ console.dir(result.logs[0].events, {depth: null})
 //     attributes: [
 //       {
 //         key: '_contract_address',
-//         value: 'osmo19y9uedlq0cpugg5a5jtxn8vs5rdwepnk7v863qmyc0p0899dfxxq5r8q8u'
+//         value: 'osmo13we0myxwzlpx8l5ark8elw5gj5d59dl6cjkzmt80c5q5cv5rt54qcslsrc'
 //       },
 //       { key: 'action', value: 'issue_mint_request' },
 //       {
 //         key: 'requester',
-//         value: 'osmo1qwexv7c6sm95lwhzn9027vyu2ccneaqad4w8ka'
+//         value: 'osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
 //       },
 //       { key: 'amount', value: '10000000' },
-//       { key: 'tx_id', value: 'xxxxxxxx' },
-//       { key: 'deposit_address', value: 'xxxxxx' },
-//       { key: 'block_height', value: '92912' },
-//       { key: 'timestamp', value: '1684316814799465209' },
-//       { key: 'transaction_index', value: '0' },
+//       {
+//         key: 'deposit_address',
+//         value: 'bc1osmo14hcxlnwlqtq75ttaxf674vk6mafspg8xwgnn53'
+//       },
 //       { key: 'nonce', value: '0' },
+//       { key: 'tx_id', value: 'xxxxxxxx' },
 //       {
 //         key: 'request_hash',
-//         value: 'R3nfR12vjFv3/HDpnc0ToRE0Ir5/SsKJajr5T5GA38M='
+//         value: 'IHUKI6mIsmPU66VdZt6FMc4BdIiQYrtb5G9bi/2G0M4='
 //       }
 //     ]
 //   }
@@ -183,4 +185,3 @@ console.dir(result.logs[0].events, {depth: null})
 Find more available methods in [`ts/sdk/types/contracts/WbtcController.client.d.ts`](./ts/sdk/types/contracts/WbtcController.client.d.ts). As you might notice, the methods are generated from the contract's schema and could be imported as javascript/typescript module.
 
 Find out how to use console in [Beaker's readme](https://github.com/osmosis-labs/beaker#console)
-

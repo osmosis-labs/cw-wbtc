@@ -10,22 +10,22 @@ use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
+    attrs::action_attrs,
     auth::{allow_only, Role},
-    helpers::action_attrs,
     ContractError,
 };
 
 use super::{
     deposit_address,
-    request::{Request, RequestData, RequestManager, RequestWithHash, Status, TxId},
+    request::{Request, RequestManager, RequestWithHash, Status},
     token,
 };
 
 /// Burn request status.
 #[cw_serde]
 pub enum BurnRequestStatus {
-    /// The burn request has been executed. This is the initial status.
-    Executed,
+    /// The burn request has been executed and pending for tx_id confirmation. This is the initial status.
+    Pending,
     /// The burn request has been confirmed by the custodian.
     Confirmed,
 }
@@ -37,7 +37,7 @@ pub type BurnRequestWithHash = RequestWithHash<BurnRequestStatus>;
 impl Display for BurnRequestStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BurnRequestStatus::Executed => write!(f, "Executed"),
+            BurnRequestStatus::Pending => write!(f, "Pending"),
             BurnRequestStatus::Confirmed => write!(f, "Confirmed"),
         }
     }
@@ -49,7 +49,7 @@ impl Display for BurnRequestStatus {
 /// - `Executed` is the only updatable status.
 impl Status for BurnRequestStatus {
     fn initial() -> Self {
-        Self::Executed
+        Self::Pending
     }
 
     fn is_updatable(&self) -> bool {
@@ -98,22 +98,17 @@ pub fn burn(
     // record burn request
     let (request_hash, request) = burn_requests().issue(
         deps.branch(),
-        env.clone(),
         info.sender.clone(),
         amount,
         // tx_id will later be confirmed by the custodian
-        TxId::Pending,
+        None,
         deposit_address,
+        env.block.time,
     )?;
 
-    // construct attributes
-    let mut attrs = action_attrs("burn", <Vec<Attribute>>::from(&request.data));
-    attrs.extend(vec![attr("request_hash", request_hash)]);
-
     // construct burn message
-    let RequestData { amount, .. } = request.data;
     let denom = token::get_token_denom(deps.storage)?;
-    let token_to_burn = Coin::new(amount.u128(), denom);
+    let token_to_burn = Coin::new(request.amount.u128(), denom);
 
     // burn the requested amount of tokens from sender, which can only be the merchant
     let burn_msg: CosmosMsg = MsgBurn {
@@ -122,6 +117,10 @@ pub fn burn(
         burn_from_address: info.sender.to_string(),
     }
     .into();
+
+    // construct attributes
+    let mut attrs = action_attrs("burn", <Vec<Attribute>>::from(&request.data()));
+    attrs.extend(vec![attr("request_hash", request_hash)]);
 
     Ok(Response::new().add_message(burn_msg).add_attributes(attrs))
 }
@@ -132,7 +131,7 @@ pub fn burn(
 /// And confirm that with `tx_id`.
 pub fn confirm_burn_request(
     mut deps: DepsMut,
-    env: Env,
+
     info: MessageInfo,
     request_hash: String,
     tx_id: String,
@@ -143,24 +142,14 @@ pub fn confirm_burn_request(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
-        |request| {
-            // ensure contract address matched request's contract address
-            ensure!(
-                request.data.contract.address == env.contract.address,
-                ContractError::Std(cosmwasm_std::StdError::generic_err(
-                    "unreachable: contract address mismatch"
-                ))
-            );
-
-            Ok(())
-        },
+        |_| Ok(()),
     )?;
 
     burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
 
     let mut attrs = action_attrs(
         "confirm_burn_request",
-        <Vec<Attribute>>::from(&request.data),
+        <Vec<Attribute>>::from(&request.data()),
     );
     attrs.extend(vec![attr("request_hash", request_hash)]);
 
@@ -217,11 +206,11 @@ mod tests {
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
     use crate::{
-        auth::{custodian, merchant, owner},
+        auth::{custodian, governor, member_manager, merchant},
         tokenfactory::{
             burn::{burn_requests, confirm_burn_request, set_min_burn_amount, BurnRequestStatus},
             deposit_address,
-            request::{RequestData, TxId},
+            request::RequestData,
             token,
         },
         ContractError,
@@ -231,7 +220,8 @@ mod tests {
 
     #[test]
     fn test_burn() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -241,9 +231,16 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -262,10 +259,12 @@ mod tests {
         let denom = token::get_token_denom(deps.as_ref().storage).unwrap();
         let token_to_burn = Coin::new(amount.u128(), denom);
 
+        let timestamp = Timestamp::from_seconds(1689069540);
+
         let env = Env {
             block: BlockInfo {
                 height: 1,
-                time: Timestamp::from_seconds(1689069540),
+                time: timestamp,
                 chain_id: "osmosis-1".to_string(),
             },
             transaction: Some(TransactionInfo { index: 1 }),
@@ -302,25 +301,23 @@ mod tests {
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
-        assert_eq!(request.status, BurnRequestStatus::Executed);
+        assert_eq!(request.status, BurnRequestStatus::Pending);
 
         assert_eq!(
-            request.data,
+            request.data(),
             RequestData {
                 requester: Addr::unchecked(merchant),
                 amount,
-                tx_id: TxId::Pending,
+                tx_id: None,
                 deposit_address: deposit_address.to_string(),
-                block: env.block.clone(),
-                transaction: env.transaction.clone(),
-                contract: env.contract.clone(),
                 nonce: Uint128::zero(),
+                timestamp
             }
         );
 
         // burn fail with unauthorized if not merchant
         assert_eq!(
-            burn_fixture(deps.as_mut(), mock_info(owner, &[])).unwrap_err(),
+            burn_fixture(deps.as_mut(), mock_info(governor, &[])).unwrap_err(),
             ContractError::Unauthorized {}
         );
 
@@ -332,7 +329,8 @@ mod tests {
 
     #[test]
     fn test_confirm_burn() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -342,9 +340,16 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -373,7 +378,7 @@ mod tests {
             },
         };
 
-        let res = burn(deps.as_mut(), env.clone(), mock_info(merchant, &[]), amount).unwrap();
+        let res = burn(deps.as_mut(), env, mock_info(merchant, &[]), amount).unwrap();
 
         let request_hash = res
             .attributes
@@ -387,12 +392,11 @@ mod tests {
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
 
-        assert_eq!(request_before.status, BurnRequestStatus::Executed);
-        assert_eq!(request_before.data.tx_id, TxId::Pending);
+        assert_eq!(request_before.status, BurnRequestStatus::Pending);
+        assert_eq!(request_before.tx_id, None);
 
         confirm_burn_request(
             deps.as_mut(),
-            env,
             mock_info(custodian, &[]),
             request_hash.clone(),
             "btc_tx_id".to_string(),
@@ -404,15 +408,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(request_after.status, BurnRequestStatus::Confirmed);
-        assert_eq!(
-            request_after.data.tx_id,
-            TxId::Confirmed("btc_tx_id".to_string())
-        );
+        assert_eq!(request_after.tx_id, Some("btc_tx_id".to_string()));
     }
 
     #[test]
     fn test_min_burn_amount() {
-        let owner = "osmo1owner";
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
         let custodian = "osmo1custodian";
         let merchant = "osmo1merchant";
 
@@ -422,9 +424,16 @@ mod tests {
         let mut deps = mock_dependencies();
 
         // setup
-        owner::initialize_owner(deps.as_mut(), owner).unwrap();
-        custodian::set_custodian(deps.as_mut(), &mock_info(owner, &[]), custodian).unwrap();
-        merchant::add_merchant(deps.as_mut(), &mock_info(owner, &[]), merchant).unwrap();
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(deps.as_mut(), &mock_info(member_manager, &[]), custodian)
+            .unwrap();
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
@@ -455,7 +464,7 @@ mod tests {
         // set min burn amount
         // only custodian can set
         assert_eq!(
-            set_min_burn_amount(deps.as_mut(), &mock_info(owner, &[]), min_burn_amount)
+            set_min_burn_amount(deps.as_mut(), &mock_info(governor, &[]), min_burn_amount)
                 .unwrap_err(),
             ContractError::Unauthorized {}
         );

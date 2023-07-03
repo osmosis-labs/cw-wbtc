@@ -9,15 +9,16 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
     MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
 };
 
-use crate::auth::{custodian, merchant, owner};
-use crate::error::ContractError;
+use crate::auth::{custodian, governor, member_manager, merchant};
+use crate::error::{non_payable, ContractError};
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse,
-    GetMintRequestsCountResponse, GetOwnerResponse, GetTokenDenomResponse, InstantiateMsg,
-    IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, IsPausedResponse,
-    ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
+    GetGovernorResponse, GetMemberManagerResponse, GetMinBurnAmountResponse,
+    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
+    GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse, IsGovernorResponse,
+    IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse,
+    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -40,7 +41,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // Initialize the admin, no auth is required only at contract instantiation
-    owner::initialize_owner(deps, msg.owner.as_ref())?;
+    governor::initialize_governor(deps, msg.governor.as_ref())?;
 
     // create denom
     let msg_create_denom = SubMsg::reply_on_success(
@@ -54,7 +55,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_submessage(msg_create_denom)
         .add_attribute("action", "instantiate")
-        .add_attribute("owner", info.sender))
+        .add_attribute("governor", info.sender))
 }
 
 /// Handling contract execution
@@ -65,21 +66,22 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // no execute message requires sending funds, reject all non-zero funds
+    non_payable(&info)?;
+
     match msg {
         // === mint ===
-        ExecuteMsg::IssueMintRequest {
-            amount,
-            tx_id,
-            deposit_address,
-        } => mint::issue_mint_request(deps, info, env, amount, tx_id, deposit_address),
+        ExecuteMsg::IssueMintRequest { amount, tx_id } => {
+            mint::issue_mint_request(deps, env, info, amount, tx_id)
+        }
         ExecuteMsg::CancelMintRequest { request_hash } => {
-            mint::cancel_mint_request(deps, info, env.contract.address, request_hash)
+            mint::cancel_mint_request(deps, info, request_hash)
         }
         ExecuteMsg::ApproveMintRequest { request_hash } => {
             mint::approve_mint_request(deps, info, env.contract.address, request_hash)
         }
         ExecuteMsg::RejectMintRequest { request_hash } => {
-            mint::reject_mint_request(deps, info, env.contract.address, request_hash)
+            mint::reject_mint_request(deps, info, request_hash)
         }
 
         // === burn ===
@@ -87,12 +89,15 @@ pub fn execute(
         ExecuteMsg::ConfirmBurnRequest {
             request_hash,
             tx_id,
-        } => burn::confirm_burn_request(deps, env, info, request_hash, tx_id),
+        } => burn::confirm_burn_request(deps, info, request_hash, tx_id),
         ExecuteMsg::SetMinBurnAmount { amount } => burn::set_min_burn_amount(deps, &info, amount),
 
         // === auth ===
-        ExecuteMsg::TransferOwnership { new_owner_address } => {
-            owner::transfer_ownership(deps, &info, &new_owner_address)
+        ExecuteMsg::TransferGovernorship {
+            new_governor_address,
+        } => governor::transfer_governorship(deps, &info, &new_governor_address),
+        ExecuteMsg::SetMemberManager { address } => {
+            member_manager::set_member_manager(deps, &info, &address)
         }
         ExecuteMsg::SetCustodian { address } => custodian::set_custodian(deps, &info, &address),
         ExecuteMsg::AddMerchant { address } => merchant::add_merchant(deps, &info, &address),
@@ -192,17 +197,26 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ListMerchants { limit, start_after } => to_binary(&ListMerchantsResponse {
             merchants: merchant::list_merchants(deps, start_after, limit)?,
         }),
+        QueryMsg::IsMemberManager { address } => to_binary(&IsMemberManagerResponse {
+            is_member_manager: member_manager::is_member_manager(
+                deps,
+                &deps.api.addr_validate(&address)?,
+            )?,
+        }),
+        QueryMsg::GetMemberManager {} => to_binary(&GetMemberManagerResponse {
+            address: member_manager::get_member_manager(deps)?,
+        }),
         QueryMsg::IsCustodian { address } => to_binary(&IsCustodianResponse {
             is_custodian: custodian::is_custodian(deps, &deps.api.addr_validate(&address)?)?,
         }),
         QueryMsg::GetCustodian {} => to_binary(&GetCustodianResponse {
             address: custodian::get_custodian(deps)?,
         }),
-        QueryMsg::GetOwner {} => to_binary(&GetOwnerResponse {
-            address: owner::get_owner(deps)?,
+        QueryMsg::GetGovernor {} => to_binary(&GetGovernorResponse {
+            address: governor::get_governor(deps)?,
         }),
-        QueryMsg::IsOwner { address } => to_binary(&IsOwnerResponse {
-            is_owner: owner::is_owner(deps, &deps.api.addr_validate(&address)?)?,
+        QueryMsg::IsGovernor { address } => to_binary(&IsGovernorResponse {
+            is_governor: governor::is_governor(deps, &deps.api.addr_validate(&address)?)?,
         }),
 
         // == deposit address ==
@@ -269,6 +283,46 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
             );
 
             Ok(Response::new().add_attribute("hook", "block_before_send"))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cosmwasm_std::{
+        testing::{mock_dependencies, mock_env, mock_info},
+        Coin,
+    };
+
+    use super::*;
+
+    #[test]
+    fn execute_reject_all_non_zero_funds() {
+        // sample messages
+        let msgs = vec![
+            ExecuteMsg::Burn {
+                amount: 1000u128.into(),
+            },
+            ExecuteMsg::Pause {},
+            ExecuteMsg::SetMinBurnAmount {
+                amount: 10000u128.into(),
+            },
+            ExecuteMsg::IssueMintRequest {
+                amount: 10000u128.into(),
+                tx_id: "tx_id".to_string(),
+            },
+        ];
+
+        for msg in msgs {
+            let mut deps = mock_dependencies();
+            let err = execute(
+                deps.as_mut(),
+                mock_env(),
+                mock_info("sender", &[Coin::new(1, "uosmo")]),
+                msg,
+            )
+            .unwrap_err();
+            assert_eq!(err, ContractError::NonPayable {});
         }
     }
 }

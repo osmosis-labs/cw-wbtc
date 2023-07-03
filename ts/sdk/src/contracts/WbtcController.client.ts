@@ -6,7 +6,7 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { Coin, StdFee } from "@cosmjs/amino";
-import { InstantiateMsg, ExecuteMsg, Uint128, Metadata, DenomUnit, QueryMsg, MintRequestStatus, BurnRequestStatus, Timestamp, Uint64, Addr, TxId, GetBurnRequestByHashResponse, RequestForBurnRequestStatus, RequestData, BlockInfo, ContractInfo, TransactionInfo, GetBurnRequestByNonceResponse, GetBurnRequestsCountResponse, GetCustodianResponse, GetCustodianDepositAddressResponse, GetMerchantDepositAddressResponse, GetMintRequestByHashResponse, RequestForMintRequestStatus, GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetOwnerResponse, GetTokenDenomResponse, IsCustodianResponse, IsMerchantResponse, IsOwnerResponse, ListBurnRequestsResponse, RequestWithHashForBurnRequestStatus, ListMerchantsResponse, ListMintRequestsResponse, RequestWithHashForMintRequestStatus } from "./WbtcController.types";
+import { InstantiateMsg, ExecuteMsg, Uint128, Metadata, DenomUnit, QueryMsg, MintRequestStatus, BurnRequestStatus, Addr, GetBurnRequestByHashResponse, RequestForBurnRequestStatus, GetBurnRequestByNonceResponse, GetBurnRequestsCountResponse, GetCustodianResponse, GetCustodianDepositAddressResponse, GetGovernorResponse, GetMemberManagerResponse, GetMerchantDepositAddressResponse, GetMinBurnAmountResponse, GetMintRequestByHashResponse, RequestForMintRequestStatus, GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetTokenDenomResponse, IsCustodianResponse, IsGovernorResponse, IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse, RequestWithHashForBurnRequestStatus, ListMerchantsResponse, ListMintRequestsResponse, RequestWithHashForMintRequestStatus } from "./WbtcController.types";
 export interface WbtcControllerReadOnlyInterface {
   contractAddress: string;
   getMintRequestByNonce: ({
@@ -49,6 +49,7 @@ export interface WbtcControllerReadOnlyInterface {
     startAfterNonce?: Uint128;
     status?: BurnRequestStatus;
   }) => Promise<ListBurnRequestsResponse>;
+  getMinBurnAmount: () => Promise<GetMinBurnAmountResponse>;
   getTokenDenom: () => Promise<GetTokenDenomResponse>;
   isMerchant: ({
     address
@@ -62,18 +63,24 @@ export interface WbtcControllerReadOnlyInterface {
     limit?: number;
     startAfter?: string;
   }) => Promise<ListMerchantsResponse>;
+  isMemberManager: ({
+    address
+  }: {
+    address: string;
+  }) => Promise<IsMemberManagerResponse>;
+  getMemberManager: () => Promise<GetMemberManagerResponse>;
   isCustodian: ({
     address
   }: {
     address: string;
   }) => Promise<IsCustodianResponse>;
   getCustodian: () => Promise<GetCustodianResponse>;
-  getOwner: () => Promise<GetOwnerResponse>;
-  isOwner: ({
+  getGovernor: () => Promise<GetGovernorResponse>;
+  isGovernor: ({
     address
   }: {
     address: string;
-  }) => Promise<IsOwnerResponse>;
+  }) => Promise<IsGovernorResponse>;
   getCustodianDepositAddress: ({
     merchant
   }: {
@@ -84,6 +91,7 @@ export interface WbtcControllerReadOnlyInterface {
   }: {
     merchant: string;
   }) => Promise<GetMerchantDepositAddressResponse>;
+  isPaused: () => Promise<IsPausedResponse>;
 }
 export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterface {
   client: CosmWasmClient;
@@ -100,15 +108,19 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
     this.getBurnRequestByHash = this.getBurnRequestByHash.bind(this);
     this.getBurnRequestsCount = this.getBurnRequestsCount.bind(this);
     this.listBurnRequests = this.listBurnRequests.bind(this);
+    this.getMinBurnAmount = this.getMinBurnAmount.bind(this);
     this.getTokenDenom = this.getTokenDenom.bind(this);
     this.isMerchant = this.isMerchant.bind(this);
     this.listMerchants = this.listMerchants.bind(this);
+    this.isMemberManager = this.isMemberManager.bind(this);
+    this.getMemberManager = this.getMemberManager.bind(this);
     this.isCustodian = this.isCustodian.bind(this);
     this.getCustodian = this.getCustodian.bind(this);
-    this.getOwner = this.getOwner.bind(this);
-    this.isOwner = this.isOwner.bind(this);
+    this.getGovernor = this.getGovernor.bind(this);
+    this.isGovernor = this.isGovernor.bind(this);
     this.getCustodianDepositAddress = this.getCustodianDepositAddress.bind(this);
     this.getMerchantDepositAddress = this.getMerchantDepositAddress.bind(this);
+    this.isPaused = this.isPaused.bind(this);
   }
 
   getMintRequestByNonce = async ({
@@ -199,6 +211,11 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
       }
     });
   };
+  getMinBurnAmount = async (): Promise<GetMinBurnAmountResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_min_burn_amount: {}
+    });
+  };
   getTokenDenom = async (): Promise<GetTokenDenomResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       get_token_denom: {}
@@ -229,6 +246,22 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
       }
     });
   };
+  isMemberManager = async ({
+    address
+  }: {
+    address: string;
+  }): Promise<IsMemberManagerResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      is_member_manager: {
+        address
+      }
+    });
+  };
+  getMemberManager = async (): Promise<GetMemberManagerResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_member_manager: {}
+    });
+  };
   isCustodian = async ({
     address
   }: {
@@ -245,18 +278,18 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
       get_custodian: {}
     });
   };
-  getOwner = async (): Promise<GetOwnerResponse> => {
+  getGovernor = async (): Promise<GetGovernorResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      get_owner: {}
+      get_governor: {}
     });
   };
-  isOwner = async ({
+  isGovernor = async ({
     address
   }: {
     address: string;
-  }): Promise<IsOwnerResponse> => {
+  }): Promise<IsGovernorResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      is_owner: {
+      is_governor: {
         address
       }
     });
@@ -283,14 +316,24 @@ export class WbtcControllerQueryClient implements WbtcControllerReadOnlyInterfac
       }
     });
   };
+  isPaused = async (): Promise<IsPausedResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      is_paused: {}
+    });
+  };
 }
 export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface {
   contractAddress: string;
   sender: string;
-  transferOwnership: ({
-    newOwnerAddress
+  transferGovernorship: ({
+    newGovernorAddress
   }: {
-    newOwnerAddress: string;
+    newGovernorAddress: string;
+  }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  setMemberManager: ({
+    address
+  }: {
+    address: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   setCustodian: ({
     address
@@ -321,11 +364,9 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   issueMintRequest: ({
     amount,
-    depositAddress,
     txId
   }: {
     amount: Uint128;
-    depositAddress: string;
     txId: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   cancelMintRequest: ({
@@ -355,11 +396,18 @@ export interface WbtcControllerInterface extends WbtcControllerReadOnlyInterface
     requestHash: string;
     txId: string;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  setMinBurnAmount: ({
+    amount
+  }: {
+    amount: Uint128;
+  }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
   setDenomMetadata: ({
     metadata
   }: {
     metadata: Metadata;
   }, fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  pause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
+  unpause: (fee?: number | StdFee | "auto", memo?: string, funds?: Coin[]) => Promise<ExecuteResult>;
 }
 export class WbtcControllerClient extends WbtcControllerQueryClient implements WbtcControllerInterface {
   client: SigningCosmWasmClient;
@@ -371,7 +419,8 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
     this.client = client;
     this.sender = sender;
     this.contractAddress = contractAddress;
-    this.transferOwnership = this.transferOwnership.bind(this);
+    this.transferGovernorship = this.transferGovernorship.bind(this);
+    this.setMemberManager = this.setMemberManager.bind(this);
     this.setCustodian = this.setCustodian.bind(this);
     this.addMerchant = this.addMerchant.bind(this);
     this.removeMerchant = this.removeMerchant.bind(this);
@@ -383,17 +432,31 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
     this.rejectMintRequest = this.rejectMintRequest.bind(this);
     this.burn = this.burn.bind(this);
     this.confirmBurnRequest = this.confirmBurnRequest.bind(this);
+    this.setMinBurnAmount = this.setMinBurnAmount.bind(this);
     this.setDenomMetadata = this.setDenomMetadata.bind(this);
+    this.pause = this.pause.bind(this);
+    this.unpause = this.unpause.bind(this);
   }
 
-  transferOwnership = async ({
-    newOwnerAddress
+  transferGovernorship = async ({
+    newGovernorAddress
   }: {
-    newOwnerAddress: string;
+    newGovernorAddress: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
-      transfer_ownership: {
-        new_owner_address: newOwnerAddress
+      transfer_governorship: {
+        new_governor_address: newGovernorAddress
+      }
+    }, fee, memo, funds);
+  };
+  setMemberManager = async ({
+    address
+  }: {
+    address: string;
+  }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+    return await this.client.execute(this.sender, this.contractAddress, {
+      set_member_manager: {
+        address
       }
     }, fee, memo, funds);
   };
@@ -457,17 +520,14 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
   };
   issueMintRequest = async ({
     amount,
-    depositAddress,
     txId
   }: {
     amount: Uint128;
-    depositAddress: string;
     txId: string;
   }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
     return await this.client.execute(this.sender, this.contractAddress, {
       issue_mint_request: {
         amount,
-        deposit_address: depositAddress,
         tx_id: txId
       }
     }, fee, memo, funds);
@@ -530,6 +590,17 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
       }
     }, fee, memo, funds);
   };
+  setMinBurnAmount = async ({
+    amount
+  }: {
+    amount: Uint128;
+  }, fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+    return await this.client.execute(this.sender, this.contractAddress, {
+      set_min_burn_amount: {
+        amount
+      }
+    }, fee, memo, funds);
+  };
   setDenomMetadata = async ({
     metadata
   }: {
@@ -539,6 +610,16 @@ export class WbtcControllerClient extends WbtcControllerQueryClient implements W
       set_denom_metadata: {
         metadata
       }
+    }, fee, memo, funds);
+  };
+  pause = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+    return await this.client.execute(this.sender, this.contractAddress, {
+      pause: {}
+    }, fee, memo, funds);
+  };
+  unpause = async (fee: number | StdFee | "auto" = "auto", memo?: string, funds?: Coin[]): Promise<ExecuteResult> => {
+    return await this.client.execute(this.sender, this.contractAddress, {
+      unpause: {}
     }, fee, memo, funds);
   };
 }
