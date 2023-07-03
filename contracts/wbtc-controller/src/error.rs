@@ -23,6 +23,9 @@ pub enum ContractError {
     #[error("Address `{address}` is already added as merchant")]
     DuplicatedMerchant { address: String },
 
+    #[error("Address `{address}` is not a merchant")]
+    NotAMerchant { address: String },
+
     #[error("Token transfer is paused")]
     TokenTransferPaused {},
 

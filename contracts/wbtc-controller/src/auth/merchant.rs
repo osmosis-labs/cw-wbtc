@@ -49,9 +49,19 @@ pub fn remove_merchant(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
-    MERCHANTS.remove(deps.storage, deps.api.addr_validate(address)?);
+    let address = deps.api.addr_validate(address)?;
 
-    let attrs = action_attrs("remove_merchant", vec![attr("address", address)]);
+    // check if the address is a merchant
+    ensure!(
+        is_merchant(deps.as_ref(), &address)?,
+        ContractError::NotAMerchant {
+            address: address.to_string()
+        }
+    );
+
+    let attrs = action_attrs("remove_merchant", vec![attr("address", address.as_str())]);
+    MERCHANTS.remove(deps.storage, address);
+
     Ok(Response::new().add_attributes(attrs))
 }
 
@@ -97,6 +107,7 @@ mod tests {
         let non_member_manager = "osmo1nonmembermanager";
         let merchant_address_1 = "osmo1merchant1";
         let merchant_address_2 = "osmo1merchant2";
+        let non_merchant_address = "osmo1nonmerchant";
 
         // setup
         governor::initialize_governor(deps.as_mut(), governor).unwrap();
@@ -179,6 +190,20 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
+
+        // remove non merchant
+        let err = remove_merchant(
+            deps.as_mut(),
+            &mock_info(member_manager, &[]),
+            non_merchant_address,
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            ContractError::NotAMerchant {
+                address: non_merchant_address.to_string()
+            }
+        );
 
         // remove merchant 1
         assert_eq!(
