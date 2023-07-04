@@ -138,14 +138,14 @@ pub fn confirm_burn_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
 
-    let request = burn_requests().check_and_update_request_status(
+    burn_requests().check_and_update_request_status(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
         |_| Ok(()),
     )?;
 
-    burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
+    let request = burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
 
     let mut attrs = action_attrs(
         "confirm_burn_request",
@@ -200,8 +200,8 @@ mod tests {
     use cosmwasm_std::{
         attr,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, BlockInfo, Coin, DepsMut, Env, MessageInfo, SubMsg, Timestamp, TransactionInfo,
-        Uint128,
+        Addr, Attribute, BlockInfo, Coin, DepsMut, Env, MessageInfo, SubMsg, Timestamp,
+        TransactionInfo, Uint128,
     };
     use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
@@ -395,7 +395,7 @@ mod tests {
         assert_eq!(request_before.status, BurnRequestStatus::Pending);
         assert_eq!(request_before.tx_id, None);
 
-        confirm_burn_request(
+        let res = confirm_burn_request(
             deps.as_mut(),
             mock_info(custodian, &[]),
             request_hash.clone(),
@@ -406,6 +406,17 @@ mod tests {
         let request_after = burn_requests()
             .get_request(deps.as_ref(), request_hash.as_str())
             .unwrap();
+
+        assert_eq!(
+            res.attributes
+                .into_iter()
+                .skip(1) // remove "method"
+                .rev()
+                .skip(1) // remove ""
+                .rev()
+                .collect::<Vec<_>>(),
+            <Vec<Attribute>>::from(&request_after.clone().data())
+        );
 
         assert_eq!(request_after.status, BurnRequestStatus::Confirmed);
         assert_eq!(request_after.tx_id, Some("btc_tx_id".to_string()));
