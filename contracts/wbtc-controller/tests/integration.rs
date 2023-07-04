@@ -1,3 +1,7 @@
+// Ignore integration tests for code coverage since there will be problems with dynamic linking libosmosistesttube
+// and also, tarpaulin will not be able read coverage out of wasm binary anyway
+#![cfg(not(tarpaulin))]
+
 use std::{assert_eq, path::PathBuf};
 
 use cosmwasm_std::{Coin, Uint128};
