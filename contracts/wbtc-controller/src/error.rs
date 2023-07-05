@@ -44,3 +44,21 @@ pub fn non_payable(info: &MessageInfo) -> Result<(), ContractError> {
     ensure!(info.funds.is_empty(), ContractError::NonPayable {});
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cosmwasm_std::{testing::mock_info, Coin};
+
+    #[test]
+    fn test_non_payable() {
+        let info = mock_info("osmo1xxx", &[]);
+        assert!(non_payable(&info).is_ok());
+
+        let info = mock_info("osmo1xxx", &[Coin::new(100, "uosmo")]);
+        assert_eq!(
+            non_payable(&info).unwrap_err(),
+            ContractError::NonPayable {}
+        );
+    }
+}
