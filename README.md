@@ -31,7 +31,26 @@ Thus it does the job of `token` and `factory` contract in the original WBTC cont
 
 ### Membership and Controller
 
-Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of merchants, custodian and the governor who can update the membership in the contract's state (TBD). Even if the governor is a multisig or a DAO, it still can be referenced as a single address in the contract.
+Now that we have only single contract, handling membership is just the matter of keeping track of the addresses of `merchant`s, `custodian`, `governor` and `member_manager`. Here is the list of what can each role perform:
+
+- `governor`
+    - `transfer_governorship`
+    - `set_member_manager`
+    - `set_denom_metadata`
+    - `pause` / `unpause`
+- `member_manager`
+    - `set_custodian`
+    - `add_merchant` / `remove_merchant`
+- `merchant`
+    - `set_merchant_deposit_address`
+    - `issue_mint_request` / `cancel_mint_request`
+    - `burn`
+- `custodian`
+    - `set_custodian_deposit_address`
+    - `set_min_burn_amount`
+    - `confirm_burn_request`
+    - `approve_mint_request` / `reject_mint_request`
+    
 
 For the original [`Controller.sol`](https://github.com/WrappedBTC/bitcoin-token-smart-contracts/blob/master/ethereumV2/contracts/controller/Controller.sol) contract, it is there only to wire all the contracts together which is not necessary since we only have single contract. So we can just ignore it.
 
