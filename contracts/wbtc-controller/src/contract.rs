@@ -5,9 +5,7 @@ use cosmwasm_std::{
     StdError, StdResult, SubMsg,
 };
 use cw2::set_contract_version;
-use osmosis_std::types::osmosis::tokenfactory::v1beta1::{
-    MsgCreateDenom, MsgCreateDenomResponse, MsgSetBeforeSendHook,
-};
+use osmosis_std::types::osmosis::tokenfactory::v1beta1::{MsgCreateDenom, MsgCreateDenomResponse};
 
 use crate::auth::{custodian, governor, member_manager, merchant};
 use crate::error::{non_payable, ContractError};
@@ -254,16 +252,17 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
             // set beforesend listener to this contract
             // this will trigger sudo endpoint before any bank send
             // which makes token transfer pause possible
-            let msg_set_beforesend_hook: CosmosMsg = MsgSetBeforeSendHook {
-                sender: env.contract.address.to_string(),
-                denom: new_token_denom.clone(),
-                cosmwasm_address: env.contract.address.to_string(),
-            }
-            .into();
+            //
+            // --- REMOVED AS THIS IS NOT AVAILABLE IN OSMOSIS v16 ---
+            //
+            // let msg_set_beforesend_hook: CosmosMsg = MsgSetBeforeSendHook {
+            //     sender: env.contract.address.to_string(),
+            //     denom: new_token_denom.clone(),
+            //     cosmwasm_address: env.contract.address.to_string(),
+            // }
+            // .into();
 
-            Ok(Response::new()
-                .add_attribute("new_token_denom", new_token_denom)
-                .add_message(msg_set_beforesend_hook))
+            Ok(Response::new().add_attribute("new_token_denom", new_token_denom))
         }
         _ => Err(StdError::not_found(format!("No reply handler found for: {:?}", msg)).into()),
     }
