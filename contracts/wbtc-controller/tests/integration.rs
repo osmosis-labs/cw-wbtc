@@ -586,6 +586,7 @@ fn test_mint_and_burn() {
 }
 
 #[test]
+#[ignore = "wait for osmosis v17"]
 fn test_token_pause_and_unpause_transfer() {
     let app = OsmosisTestApp::default();
     let bank = Bank::new(&app);
