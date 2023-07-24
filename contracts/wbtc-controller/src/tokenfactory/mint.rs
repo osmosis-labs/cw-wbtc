@@ -274,6 +274,11 @@ mod tests {
         )
         .unwrap();
 
+        assert_eq!(
+            mint_requests().get_request_count(deps.as_ref()).unwrap(),
+            Uint128::new(0)
+        );
+
         let issue_mint_request_fixture = |deps: DepsMut, sender: &str| {
             issue_mint_request(
                 deps,
