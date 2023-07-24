@@ -11,7 +11,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, Role},
-    state::{burn_requests, MIN_BURN_AMOUNT},
+    state::burn::{burn_requests, MIN_BURN_AMOUNT},
     ContractError,
 };
 

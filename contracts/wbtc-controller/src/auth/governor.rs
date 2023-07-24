@@ -1,7 +1,7 @@
 /// `governor` module provides governor management functionality.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
-use crate::{attrs::action_attrs, state::GOVERNOR, ContractError};
+use crate::{attrs::action_attrs, state::auth::GOVERNOR, ContractError};
 
 use super::{allow_only, Role};
 

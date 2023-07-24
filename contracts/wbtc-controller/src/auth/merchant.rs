@@ -7,7 +7,10 @@ use cw_storage_plus::Bound;
 use crate::{
     attrs::action_attrs,
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
-    state::{CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANTS, MERCHANT_DEPOSIT_ADDRESS},
+    state::{
+        auth::MERCHANTS,
+        deposit_address::{CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS},
+    },
     ContractError,
 };
 

@@ -1,7 +1,7 @@
 /// `custodian` module provides functionality to manage the custodian address.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
-use crate::{attrs::action_attrs, state::CUSTODIAN, ContractError};
+use crate::{attrs::action_attrs, state::auth::CUSTODIAN, ContractError};
 
 use super::{allow_only, Role};
 

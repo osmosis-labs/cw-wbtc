@@ -9,7 +9,7 @@ use osmosis_std::types::{
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, Role},
-    state::{IS_PAUSED, TOKEN_DENOM},
+    state::token::{IS_PAUSED, TOKEN_DENOM},
     ContractError,
 };
 

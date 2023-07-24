@@ -4,7 +4,7 @@ use std::fmt::Display;
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, merchant, Role},
-    state::mint_requests,
+    state::mint::mint_requests,
     tokenfactory::request::RequestData,
     ContractError,
 };

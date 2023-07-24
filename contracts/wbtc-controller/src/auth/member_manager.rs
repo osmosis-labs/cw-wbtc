@@ -1,7 +1,7 @@
 /// `member_manager` module provides functionality to manage the member manager address.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
-use crate::{attrs::action_attrs, state::MEMBER_MANAGER, ContractError};
+use crate::{attrs::action_attrs, state::auth::MEMBER_MANAGER, ContractError};
 
 use super::{allow_only, Role};
 

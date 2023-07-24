@@ -5,7 +5,7 @@ use cw_storage_plus::Map;
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, merchant, Role},
-    state::{CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS},
+    state::deposit_address::{CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS},
     ContractError,
 };
 
