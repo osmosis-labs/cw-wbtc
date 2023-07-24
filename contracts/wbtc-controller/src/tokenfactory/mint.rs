@@ -270,7 +270,7 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant,
-            custodian_deposit_address,
+            Some(custodian_deposit_address),
         )
         .unwrap();
 
@@ -396,7 +396,7 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant,
-            custodian_deposit_address,
+            Some(custodian_deposit_address),
         )
         .unwrap();
 
@@ -462,7 +462,7 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant,
-            custodian_deposit_address,
+            Some(custodian_deposit_address),
         )
         .unwrap();
 
@@ -587,7 +587,7 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant,
-            custodian_deposit_address,
+            Some(custodian_deposit_address),
         )
         .unwrap();
 

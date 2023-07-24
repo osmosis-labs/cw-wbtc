@@ -111,10 +111,10 @@ pub fn execute(
             deps,
             &info,
             merchant.as_str(),
-            &deposit_address,
+            deposit_address.as_deref(),
         ),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
-            deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
+            deposit_address::set_merchant_deposit_address(deps, &info, deposit_address.as_deref())
         }
 
         ExecuteMsg::SetDenomMetadata { metadata } => {
