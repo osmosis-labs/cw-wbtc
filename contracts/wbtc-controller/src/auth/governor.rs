@@ -9,11 +9,10 @@ use super::{allow_only, Role};
 const GOVERNOR: Item<Addr> = Item::new("governor");
 
 /// Initialize the governor, can only be called once at contract instantiation
-pub fn initialize_governor(deps: DepsMut, address: &str) -> Result<Response, ContractError> {
-    GOVERNOR.save(deps.storage, &deps.api.addr_validate(address)?)?;
-
-    let attrs = action_attrs("initialize_governor", vec![attr("address", address)]);
-    Ok(Response::new().add_attributes(attrs))
+pub fn initialize_governor(deps: DepsMut, address: &str) -> Result<(), ContractError> {
+    GOVERNOR
+        .save(deps.storage, &deps.api.addr_validate(address)?)
+        .map_err(Into::into)
 }
 
 /// Transfer the governorship to another address, only the governor can call this
@@ -66,15 +65,7 @@ mod tests {
         assert_eq!(err, StdError::not_found("Governor"));
 
         // initialize governor
-        assert_eq!(
-            initialize_governor(deps.as_mut(), governor_address)
-                .unwrap()
-                .attributes,
-            vec![
-                attr("action", "initialize_governor"),
-                attr("address", governor_address)
-            ]
-        );
+        initialize_governor(deps.as_mut(), governor_address).unwrap();
 
         // check after set will pass
         assert_eq!(get_governor(deps.as_ref()).unwrap(), governor_address);

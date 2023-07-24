@@ -35,7 +35,7 @@ const CREATE_DENOM_REPLY_ID: u64 = 1;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -55,7 +55,7 @@ pub fn instantiate(
     Ok(Response::new()
         .add_submessage(msg_create_denom)
         .add_attribute("action", "instantiate")
-        .add_attribute("governor", info.sender))
+        .add_attribute("governor", msg.governor))
 }
 
 /// Handling contract execution
@@ -111,10 +111,10 @@ pub fn execute(
             deps,
             &info,
             merchant.as_str(),
-            &deposit_address,
+            deposit_address.as_deref(),
         ),
         ExecuteMsg::SetMerchantDepositAddress { deposit_address } => {
-            deposit_address::set_merchant_deposit_address(deps, &info, &deposit_address)
+            deposit_address::set_merchant_deposit_address(deps, &info, deposit_address.as_deref())
         }
 
         ExecuteMsg::SetDenomMetadata { metadata } => {
@@ -290,11 +290,33 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
+        attr,
         testing::{mock_dependencies, mock_env, mock_info},
         Coin,
     };
 
     use super::*;
+
+    #[test]
+    fn instantiate_attrs() {
+        let mut deps = mock_dependencies();
+        let msg = InstantiateMsg {
+            governor: "osmo1governor".to_string(),
+            subdenom: "subdenom".to_string(),
+        };
+
+        let info = mock_info("creator", &[]);
+        let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // check attributes
+        assert_eq!(
+            res.attributes,
+            vec![
+                attr("action", "instantiate"),
+                attr("governor", "osmo1governor"),
+            ]
+        );
+    }
 
     #[test]
     fn execute_reject_all_non_zero_funds() {

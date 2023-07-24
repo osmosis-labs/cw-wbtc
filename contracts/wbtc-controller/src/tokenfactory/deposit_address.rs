@@ -12,16 +12,12 @@ use crate::{
 pub struct DepositAddressManager<'a> {
     /// deposit address storage.
     deposit_address: Map<'a, Addr, String>,
-
-    /// role allowed to set the deposit address.
-    setter_role: Role,
 }
 
 impl<'a> DepositAddressManager<'a> {
     pub const fn new(namespace: &'a str, setter_role: Role) -> Self {
         DepositAddressManager {
             deposit_address: Map::new(namespace),
-            setter_role,
         }
     }
 
@@ -30,22 +26,34 @@ impl<'a> DepositAddressManager<'a> {
         deps: DepsMut,
         info: &MessageInfo,
         merchant: &str,
-        deposit_address: &str,
+        deposit_address: Option<&str>,
     ) -> Result<Vec<Attribute>, ContractError> {
-        allow_only(&[self.setter_role], &info.sender, deps.as_ref())?;
-
         let merchant = deps.api.addr_validate(merchant)?;
 
         let attrs = vec![
             attr("sender", info.sender.as_str()),
             attr("merchant", merchant.as_str()),
-            attr("deposit_address", deposit_address),
         ];
 
-        self.deposit_address
-            .save(deps.storage, merchant, &deposit_address.to_string())?;
+        match deposit_address {
+            // set deposit address if it's not None
+            Some(deposit_address) => {
+                self.deposit_address
+                    .save(deps.storage, merchant, &deposit_address.to_string())?;
 
-        Ok(attrs)
+                // add deposit address to the attributes
+                Ok(attrs
+                    .into_iter()
+                    .chain(vec![attr("deposit_address", deposit_address)])
+                    .collect())
+            }
+
+            // remove deposit address if it's set to None
+            None => {
+                self.deposit_address.remove(deps.storage, merchant);
+                Ok(attrs)
+            }
+        }
     }
 
     pub fn get_deposit_address(
@@ -61,15 +69,17 @@ impl<'a> DepositAddressManager<'a> {
 /// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
 /// by using a different deposit address per merchant the custodian can identify which merchant deposited.
 /// Only custodian can set this addresses.
-const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
-    DepositAddressManager::new("custodian_deposit_address_per_merchant", Role::Custodian);
+pub(crate) const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
+    DepositAddressMananger::new("custodian_deposit_address_per_merchant");
 
 pub fn set_custodian_deposit_address(
     deps: DepsMut,
     info: &MessageInfo,
     merchant: &str,
-    deposit_address: &str,
+    deposit_address: Option<&str>,
 ) -> Result<Response, ContractError> {
+    allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
+
     // ensure that the merchant to be associated with the deposit address really has a merchant role.
     // since `set_deposit_address` only checks if sender is custodian.
     ensure!(
@@ -101,14 +111,16 @@ pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<Stri
 }
 
 /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
-const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
-    DepositAddressManager::new("merchant_deposit_address", Role::Merchant);
+pub(crate) const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
+    DepositAddressMananger::new("merchant_deposit_address");
 
 pub fn set_merchant_deposit_address(
     deps: DepsMut,
     info: &MessageInfo,
-    deposit_address: &str,
+    deposit_address: Option<&str>,
 ) -> Result<Response, ContractError> {
+    allow_only(&[Role::Merchant], &info.sender, deps.as_ref())?;
+
     // no need to ensure that the merchant to be associated with the deposit address really has a merchant role.
     // since it sets to the sender address, which is already checked to be a merchant in `set_deposit_address`.
 
@@ -185,7 +197,7 @@ mod tests {
                 deps.as_mut(),
                 &mock_info(merchant_1, &[]),
                 merchant_1,
-                deposit_address_1,
+                Some(deposit_address_1),
             )
             .unwrap_err(),
             ContractError::Unauthorized {}
@@ -197,7 +209,7 @@ mod tests {
                 deps.as_mut(),
                 &mock_info(custodian, &[]),
                 non_merchant,
-                deposit_address_1,
+                Some(deposit_address_1),
             )
             .unwrap_err(),
             ContractError::DepositAddressAssociatedByNonMerchant {
@@ -210,7 +222,7 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant_1,
-            deposit_address_1,
+            Some(deposit_address_1),
         )
         .unwrap();
 
@@ -224,13 +236,24 @@ mod tests {
             deps.as_mut(),
             &mock_info(custodian, &[]),
             merchant_2,
-            deposit_address_2,
+            Some(deposit_address_2),
         )
         .unwrap();
 
         assert_eq!(
             get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap(),
             deposit_address_2.to_string()
+        );
+
+        // remove custodian deposit address for merchant 1
+        set_custodian_deposit_address(deps.as_mut(), &mock_info(custodian, &[]), merchant_1, None)
+            .unwrap();
+
+        assert_eq!(
+            get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap_err(),
+            StdError::not_found(format!(
+                "No custodian deposit address found for `{merchant_1}`"
+            ))
         );
     }
     #[test]
@@ -276,7 +299,7 @@ mod tests {
             set_merchant_deposit_address(
                 deps.as_mut(),
                 &mock_info(governor, &[]),
-                deposit_address_1,
+                Some(deposit_address_1),
             )
             .unwrap_err(),
             ContractError::Unauthorized {}
@@ -285,7 +308,7 @@ mod tests {
             set_merchant_deposit_address(
                 deps.as_mut(),
                 &mock_info(custodian, &[]),
-                deposit_address_1,
+                Some(deposit_address_1),
             )
             .unwrap_err(),
             ContractError::Unauthorized {}
@@ -294,7 +317,7 @@ mod tests {
             set_merchant_deposit_address(
                 deps.as_mut(),
                 &mock_info("anyone", &[]),
-                deposit_address_1,
+                Some(deposit_address_1),
             )
             .unwrap_err(),
             ContractError::Unauthorized {}
@@ -304,7 +327,7 @@ mod tests {
         set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant_1, &[]),
-            deposit_address_1,
+            Some(deposit_address_1),
         )
         .unwrap();
 
@@ -317,13 +340,23 @@ mod tests {
         set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant_2, &[]),
-            deposit_address_2,
+            Some(deposit_address_2),
         )
         .unwrap();
 
         assert_eq!(
             get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_2)).unwrap(),
             deposit_address_2.to_string()
+        );
+
+        // remove merchant deposit address for merchant 1
+        set_merchant_deposit_address(deps.as_mut(), &mock_info(merchant_1, &[]), None).unwrap();
+
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_1)).unwrap_err(),
+            StdError::not_found(format!(
+                "No merchant deposit address found for `{merchant_1}`"
+            ))
         );
     }
 }

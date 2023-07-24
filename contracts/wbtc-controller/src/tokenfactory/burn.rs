@@ -142,7 +142,7 @@ pub fn confirm_burn_request(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
-        |_| Ok(()),
+        |_, _| Ok(()),
     )?;
 
     let request = burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;
@@ -245,7 +245,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
@@ -274,6 +274,12 @@ mod tests {
         };
 
         let burn_fixture = |deps: DepsMut, info: MessageInfo| burn(deps, env.clone(), info, amount);
+
+        // burn request count = 0
+        assert_eq!(
+            burn_requests().get_request_count(deps.as_ref()).unwrap(),
+            Uint128::zero()
+        );
 
         // burn success
         let res = burn_fixture(deps.as_mut(), mock_info(merchant, &[])).unwrap();
@@ -315,6 +321,12 @@ mod tests {
             }
         );
 
+        // burn request count = 1
+        assert_eq!(
+            burn_requests().get_request_count(deps.as_ref()).unwrap(),
+            Uint128::one()
+        );
+
         // burn fail with unauthorized if not merchant
         assert_eq!(
             burn_fixture(deps.as_mut(), mock_info(governor, &[])).unwrap_err(),
@@ -354,7 +366,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
@@ -449,7 +461,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
