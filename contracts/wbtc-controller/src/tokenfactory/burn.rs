@@ -6,7 +6,6 @@ use cosmwasm_std::{
     attr, ensure, Attribute, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128,
 };
-use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
@@ -66,8 +65,6 @@ fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
         "burn_nonce",
     )
 }
-
-const MIN_BURN_AMOUNT: Item<Uint128> = Item::new("min_burn_amount");
 
 /// Burn the requested amount of tokens.
 /// Only the merchant can burn tokens.

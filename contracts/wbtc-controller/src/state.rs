@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::{Item, Map};
 
 pub const CUSTODIAN: Item<Addr> = Item::new("custodian");
@@ -14,3 +14,5 @@ pub const TOKEN_DENOM: Item<String> = Item::new("token_denom");
 
 /// Pause status storage.
 pub const IS_PAUSED: Item<bool> = Item::new("is_paused");
+
+pub const MIN_BURN_AMOUNT: Item<Uint128> = Item::new("min_burn_amount");
