@@ -11,12 +11,13 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, Role},
+    state::{burn_requests, MIN_BURN_AMOUNT},
     ContractError,
 };
 
 use super::{
     deposit_address,
-    request::{Request, RequestManager, RequestWithHash, Status},
+    request::{Request, RequestWithHash, Status},
     token,
 };
 
@@ -54,16 +55,6 @@ impl Status for BurnRequestStatus {
     fn is_updatable(&self) -> bool {
         self == &Self::initial()
     }
-}
-
-/// Burn request manager.
-fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
-    RequestManager::new(
-        "burn_requests",
-        "burn_requests__nonce",
-        "burn_requests__status_and_nonce",
-        "burn_nonce",
-    )
 }
 
 /// Burn the requested amount of tokens.
