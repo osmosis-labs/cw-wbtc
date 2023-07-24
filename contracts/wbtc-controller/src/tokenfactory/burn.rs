@@ -142,7 +142,7 @@ pub fn confirm_burn_request(
         deps.branch(),
         request_hash.as_str(),
         BurnRequestStatus::Confirmed,
-        |_| Ok(()),
+        |_, _| Ok(()),
     )?;
 
     let request = burn_requests().confirm_tx(deps, request_hash.as_str(), tx_id)?;

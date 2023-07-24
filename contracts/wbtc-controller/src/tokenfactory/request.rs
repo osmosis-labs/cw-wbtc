@@ -222,12 +222,12 @@ impl<'a, S: Status> RequestManager<'a, S> {
         deps: DepsMut,
         request_hash: &str,
         status: S,
-        precondition: impl Fn(&Request<S>) -> Result<(), ContractError>,
+        precondition: impl Fn(Deps, &Request<S>) -> Result<(), ContractError>,
     ) -> Result<Request<S>, ContractError> {
         let mut request = self.get_request(deps.as_ref(), request_hash)?;
 
         // ensure precondition before updating the request
-        precondition(&request)?;
+        precondition(deps.as_ref(), &request)?;
 
         // Ensure that the request is updatable
         ensure!(
