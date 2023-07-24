@@ -39,12 +39,12 @@ pub enum ExecuteMsg {
     /// Set custodian BTC deposit address of the specified merchant
     SetCustodianDepositAddress {
         merchant: String,
-        deposit_address: String,
+        deposit_address: Option<String>,
     },
 
     /// Set merchant BTC deposit address. Message sender must be a merchant.
     /// This deposit address will be associated with message sender.
-    SetMerchantDepositAddress { deposit_address: String },
+    SetMerchantDepositAddress { deposit_address: Option<String> },
 
     /// Issue request to mint tokens.
     /// Only merchants can issue mint requests.

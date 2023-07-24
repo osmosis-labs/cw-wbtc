@@ -7,6 +7,9 @@ use cw_storage_plus::{Bound, Map};
 use crate::{
     attrs::action_attrs,
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
+    tokenfactory::deposit_address::{
+        CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS,
+    },
     ContractError,
 };
 
@@ -43,7 +46,7 @@ pub fn add_merchant(
 
 /// Remove address from member of merchant.
 pub fn remove_merchant(
-    deps: DepsMut,
+    mut deps: DepsMut,
     info: &MessageInfo,
     address: &str,
 ) -> Result<Response, ContractError> {
@@ -60,7 +63,17 @@ pub fn remove_merchant(
     );
 
     let attrs = action_attrs("remove_merchant", vec![attr("address", address.as_str())]);
-    MERCHANTS.remove(deps.storage, address);
+    MERCHANTS.remove(deps.storage, address.clone());
+
+    // remove asscoiated deposit addresses
+    CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT.set_deposit_address(
+        deps.branch(),
+        info,
+        address.as_str(),
+        None,
+    )?;
+
+    MERCHANT_DEPOSIT_ADDRESS.set_deposit_address(deps, info, address.as_str(), None)?;
 
     Ok(Response::new().add_attributes(attrs))
 }
@@ -94,7 +107,13 @@ pub fn list_merchants(
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::{governor, member_manager};
+    use crate::{
+        auth::{custodian, governor, member_manager},
+        tokenfactory::deposit_address::{
+            get_custodian_deposit_address, get_merchant_deposit_address,
+            set_custodian_deposit_address, set_merchant_deposit_address,
+        },
+    };
 
     use super::*;
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
@@ -298,6 +317,95 @@ mod tests {
             )
             .unwrap(),
             hundred_one_to_hundred_forty_two
+        );
+    }
+
+    #[test]
+    fn test_cascade_remove_merchant() {
+        let mut deps = mock_dependencies();
+        let governor = "osmo1governor";
+        let member_manager = "osmo1membermanager";
+        let custodian_address = "osmo1custodian";
+        let merchant_address = "osmo1merchant";
+        let custodian_deposit_address = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+        let merchant_deposit_address = "bc1q35rayrk92pvwamwm4n2hsd3epez2g2tqcqa0fx";
+
+        // setup
+        governor::initialize_governor(deps.as_mut(), governor).unwrap();
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor, &[]),
+            member_manager,
+        )
+        .unwrap();
+        custodian::set_custodian(
+            deps.as_mut(),
+            &mock_info(member_manager, &[]),
+            custodian_address,
+        )
+        .unwrap();
+
+        // add merchant
+        add_merchant(
+            deps.as_mut(),
+            &mock_info(member_manager, &[]),
+            merchant_address,
+        )
+        .unwrap();
+
+        assert!(is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address)).unwrap());
+
+        set_custodian_deposit_address(
+            deps.as_mut(),
+            &mock_info(custodian_address, &[]),
+            merchant_address,
+            Some(custodian_deposit_address),
+        )
+        .unwrap();
+
+        set_merchant_deposit_address(
+            deps.as_mut(),
+            &mock_info(merchant_address, &[]),
+            Some(merchant_deposit_address),
+        )
+        .unwrap();
+
+        assert_eq!(
+            get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_address))
+                .unwrap(),
+            custodian_deposit_address
+        );
+
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_address))
+                .unwrap(),
+            merchant_deposit_address
+        );
+
+        // remove merchant
+        remove_merchant(
+            deps.as_mut(),
+            &mock_info(member_manager, &[]),
+            merchant_address,
+        )
+        .unwrap();
+
+        assert!(!is_merchant(deps.as_ref(), &Addr::unchecked(merchant_address)).unwrap());
+
+        assert_eq!(
+            get_custodian_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_address))
+                .unwrap_err(),
+            StdError::not_found(format!(
+                "No custodian deposit address found for `{merchant_address}`"
+            ))
+        );
+
+        assert_eq!(
+            get_merchant_deposit_address(deps.as_ref(), &Addr::unchecked(merchant_address))
+                .unwrap_err(),
+            StdError::not_found(format!(
+                "No merchant deposit address found for `{merchant_address}`"
+            ))
         );
     }
 }

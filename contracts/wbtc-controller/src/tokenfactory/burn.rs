@@ -245,7 +245,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
@@ -354,7 +354,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
@@ -449,7 +449,7 @@ mod tests {
         deposit_address::set_merchant_deposit_address(
             deps.as_mut(),
             &mock_info(merchant, &[]),
-            deposit_address,
+            Some(deposit_address),
         )
         .unwrap();
 
