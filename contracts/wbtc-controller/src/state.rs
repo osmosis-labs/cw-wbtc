@@ -1,7 +1,10 @@
 use cosmwasm_std::{Addr, Uint128};
 use cw_storage_plus::{Item, Map};
 
-use crate::{tokenfactory::RequestManager, BurnRequestStatus, MintRequestStatus};
+use crate::{
+    tokenfactory::{deposit_address::DepositAddressManager, RequestManager},
+    BurnRequestStatus, MintRequestStatus,
+};
 
 pub const CUSTODIAN: Item<Addr> = Item::new("custodian");
 pub const GOVERNOR: Item<Addr> = Item::new("governor");
@@ -38,3 +41,13 @@ pub fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
 }
 
 pub const MIN_BURN_AMOUNT: Item<Uint128> = Item::new("min_burn_amount");
+
+/// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
+/// by using a different deposit address per merchant the custodian can identify which merchant deposited.
+/// Only custodian can set this addresses.
+pub const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
+    DepositAddressManager::new("custodian_deposit_address_per_merchant");
+
+/// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
+pub const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
+    DepositAddressManager::new("merchant_deposit_address");
