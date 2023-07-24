@@ -1,12 +1,9 @@
 /// `governor` module provides governor management functionality.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
-use cw_storage_plus::Item;
 
-use crate::{attrs::action_attrs, ContractError};
+use crate::{attrs::action_attrs, state::GOVERNOR, ContractError};
 
 use super::{allow_only, Role};
-
-const GOVERNOR: Item<Addr> = Item::new("governor");
 
 /// Initialize the governor, can only be called once at contract instantiation
 pub fn initialize_governor(deps: DepsMut, address: &str) -> Result<(), ContractError> {

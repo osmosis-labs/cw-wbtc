@@ -4,6 +4,7 @@ mod constants;
 pub mod contract;
 mod error;
 pub mod msg;
+mod state;
 mod tokenfactory;
 
 pub use crate::error::ContractError;
