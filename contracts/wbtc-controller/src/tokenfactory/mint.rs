@@ -3,7 +3,7 @@ use std::fmt::Display;
 
 use crate::{
     attrs::action_attrs,
-    auth::{allow_only, Role},
+    auth::{allow_only, merchant, Role},
     tokenfactory::request::RequestData,
     ContractError,
 };
@@ -123,7 +123,7 @@ pub fn cancel_mint_request(
         deps,
         &request_hash,
         MintRequestStatus::Cancelled,
-        |request| {
+        |_, request| {
             // ensure sender is the requester
             ensure!(
                 request.requester == info.sender,
@@ -159,7 +159,17 @@ pub fn approve_mint_request(
             deps.branch(),
             &request_hash,
             MintRequestStatus::Approved,
-            |_| Ok(()),
+            |deps, request| {
+                // ensure that requester is still a merchant
+                ensure!(
+                    merchant::is_merchant(deps, &request.requester)?,
+                    ContractError::NotAMerchant {
+                        address: request.requester.to_string()
+                    }
+                );
+
+                Ok(())
+            },
         )?
         .data();
 
@@ -197,9 +207,12 @@ pub fn reject_mint_request(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Custodian], &info.sender, deps.as_ref())?;
     let request_data = mint_requests()
-        .check_and_update_request_status(deps, &request_hash, MintRequestStatus::Rejected, |_| {
-            Ok(())
-        })?
+        .check_and_update_request_status(
+            deps,
+            &request_hash,
+            MintRequestStatus::Rejected,
+            |_, _| Ok(()),
+        )?
         .data();
 
     let mut attrs = action_attrs("reject_mint_request", <Vec<Attribute>>::from(&request_data));
@@ -519,6 +532,29 @@ mod tests {
         .unwrap_err();
 
         assert_eq!(err, ContractError::Unauthorized {});
+
+        // remove merchant
+        merchant::remove_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant)
+            .unwrap();
+
+        // approve mint request with exising request hash by custodian but merchant is removed should fail
+        let err = approve_mint_request(
+            deps.as_mut(),
+            mock_info(custodian, &[]),
+            Addr::unchecked(contract),
+            request_hash.clone(),
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            err,
+            ContractError::NotAMerchant {
+                address: merchant.to_string()
+            }
+        );
+
+        // add merchant
+        merchant::add_merchant(deps.as_mut(), &mock_info(member_manager, &[]), merchant).unwrap();
 
         // approve mint request with exising request hash by custodian should succeed
         let res = approve_mint_request(
