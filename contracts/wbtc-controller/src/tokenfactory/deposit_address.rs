@@ -15,7 +15,7 @@ pub struct DepositAddressManager<'a> {
 }
 
 impl<'a> DepositAddressManager<'a> {
-    pub const fn new(namespace: &'a str, setter_role: Role) -> Self {
+    pub const fn new(namespace: &'a str) -> Self {
         DepositAddressManager {
             deposit_address: Map::new(namespace),
         }
@@ -70,7 +70,7 @@ impl<'a> DepositAddressManager<'a> {
 /// by using a different deposit address per merchant the custodian can identify which merchant deposited.
 /// Only custodian can set this addresses.
 pub(crate) const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
-    DepositAddressMananger::new("custodian_deposit_address_per_merchant");
+    DepositAddressManager::new("custodian_deposit_address_per_merchant");
 
 pub fn set_custodian_deposit_address(
     deps: DepsMut,
@@ -112,7 +112,7 @@ pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<Stri
 
 /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
 pub(crate) const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
-    DepositAddressMananger::new("merchant_deposit_address");
+    DepositAddressManager::new("merchant_deposit_address");
 
 pub fn set_merchant_deposit_address(
     deps: DepsMut,
