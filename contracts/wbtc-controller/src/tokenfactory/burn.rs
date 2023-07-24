@@ -275,6 +275,12 @@ mod tests {
 
         let burn_fixture = |deps: DepsMut, info: MessageInfo| burn(deps, env.clone(), info, amount);
 
+        // burn request count = 0
+        assert_eq!(
+            burn_requests().get_request_count(deps.as_ref()).unwrap(),
+            Uint128::zero()
+        );
+
         // burn success
         let res = burn_fixture(deps.as_mut(), mock_info(merchant, &[])).unwrap();
 
@@ -313,6 +319,12 @@ mod tests {
                 nonce: Uint128::zero(),
                 timestamp
             }
+        );
+
+        // burn request count = 1
+        assert_eq!(
+            burn_requests().get_request_count(deps.as_ref()).unwrap(),
+            Uint128::one()
         );
 
         // burn fail with unauthorized if not merchant
