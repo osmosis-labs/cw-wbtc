@@ -6,18 +6,18 @@ use cosmwasm_std::{
     attr, ensure, Attribute, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128,
 };
-use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgBurn;
 
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, Role},
+    state::burn::{burn_requests, MIN_BURN_AMOUNT},
     ContractError,
 };
 
 use super::{
     deposit_address,
-    request::{Request, RequestManager, RequestWithHash, Status},
+    request::{Request, RequestWithHash, Status},
     token,
 };
 
@@ -56,18 +56,6 @@ impl Status for BurnRequestStatus {
         self == &Self::initial()
     }
 }
-
-/// Burn request manager.
-fn burn_requests<'a>() -> RequestManager<'a, BurnRequestStatus> {
-    RequestManager::new(
-        "burn_requests",
-        "burn_requests__nonce",
-        "burn_requests__status_and_nonce",
-        "burn_nonce",
-    )
-}
-
-const MIN_BURN_AMOUNT: Item<Uint128> = Item::new("min_burn_amount");
 
 /// Burn the requested amount of tokens.
 /// Only the merchant can burn tokens.

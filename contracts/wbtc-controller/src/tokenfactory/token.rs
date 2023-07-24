@@ -2,7 +2,6 @@
 use cosmwasm_std::{
     attr, Attribute, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
 };
-use cw_storage_plus::Item;
 use osmosis_std::types::{
     cosmos::bank::v1beta1::Metadata, osmosis::tokenfactory::v1beta1::MsgSetDenomMetadata,
 };
@@ -10,11 +9,9 @@ use osmosis_std::types::{
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, Role},
+    state::token::{IS_PAUSED, TOKEN_DENOM},
     ContractError,
 };
-
-/// Token denom storage.
-const TOKEN_DENOM: Item<String> = Item::new("token_denom");
 
 /// Set the token denom.
 /// This can only be set once in the instantiation of the contract.
@@ -56,9 +53,6 @@ pub fn set_denom_metadata(
         .add_attributes(attrs)
         .add_message(msg_set_denom_metadata))
 }
-
-/// Pause status storage.
-const IS_PAUSED: Item<bool> = Item::new("is_paused");
 
 /// Set the pause status.
 pub fn pause(deps: DepsMut, info: &MessageInfo) -> Result<Response, ContractError> {

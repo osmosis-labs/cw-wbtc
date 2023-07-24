@@ -2,22 +2,19 @@
 use cosmwasm_std::{
     attr, ensure, Addr, Deps, DepsMut, MessageInfo, Order, Response, StdError, StdResult,
 };
-use cw_storage_plus::{Bound, Map};
+use cw_storage_plus::Bound;
 
 use crate::{
     attrs::action_attrs,
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
-    tokenfactory::deposit_address::{
-        CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS,
+    state::{
+        auth::MERCHANTS,
+        deposit_address::{CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT, MERCHANT_DEPOSIT_ADDRESS},
     },
     ContractError,
 };
 
 use super::{allow_only, Role};
-
-/// Merchants storage is a map of merchant addresses to empty values
-/// This makes it efficient to check if a merchant exists while not storing any data as value
-const MERCHANTS: Map<Addr, ()> = Map::new("merchants");
 
 /// Add an address as member of merchant.
 /// Duplicate addresses will not change the state since it's stored as a map's key.

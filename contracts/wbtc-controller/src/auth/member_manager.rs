@@ -1,13 +1,9 @@
 /// `member_manager` module provides functionality to manage the member manager address.
 use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
-use cw_storage_plus::Item;
 
-use crate::{attrs::action_attrs, ContractError};
+use crate::{attrs::action_attrs, state::auth::MEMBER_MANAGER, ContractError};
 
 use super::{allow_only, Role};
-
-/// Member manager address storage.
-const MEMBER_MANAGER: Item<Addr> = Item::new("member_manager");
 
 /// Set the member manager address.
 pub fn set_member_manager(

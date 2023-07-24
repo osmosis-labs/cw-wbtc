@@ -5,4 +5,4 @@ mod nonce;
 mod request;
 pub mod token;
 
-pub use request::{Request, RequestData, Status};
+pub use request::{Request, RequestData, RequestManager, Status};

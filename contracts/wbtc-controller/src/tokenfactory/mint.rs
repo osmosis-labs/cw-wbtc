@@ -4,6 +4,7 @@ use std::fmt::Display;
 use crate::{
     attrs::action_attrs,
     auth::{allow_only, merchant, Role},
+    state::mint::mint_requests,
     tokenfactory::request::RequestData,
     ContractError,
 };
@@ -16,7 +17,7 @@ use osmosis_std::types::osmosis::tokenfactory::v1beta1::MsgMint;
 
 use super::{
     deposit_address,
-    request::{Request, RequestManager, RequestWithHash, Status},
+    request::{Request, RequestWithHash, Status},
     token,
 };
 
@@ -64,16 +65,6 @@ impl Status for MintRequestStatus {
     fn is_updatable(&self) -> bool {
         self == &Self::initial()
     }
-}
-
-/// Mint request storage.
-fn mint_requests<'a>() -> RequestManager<'a, MintRequestStatus> {
-    RequestManager::new(
-        "mint_requests",
-        "mint_requests__nonce",
-        "mint_requests__status_and_nonce",
-        "mint_nonce",
-    )
 }
 
 /// Issue a mint request. This can only be done by the merchant.
