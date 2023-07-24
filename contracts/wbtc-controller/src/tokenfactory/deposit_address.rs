@@ -8,15 +8,15 @@ use crate::{
     ContractError,
 };
 
-/// `DepositAddressMananger` is a helper struct to manage deposit addresses.
-pub struct DepositAddressMananger<'a> {
+/// `DepositAddressManager` is a helper struct to manage deposit addresses.
+pub struct DepositAddressManager<'a> {
     /// deposit address storage.
     deposit_address: Map<'a, Addr, String>,
 }
 
-impl<'a> DepositAddressMananger<'a> {
-    pub const fn new(namespace: &'a str) -> Self {
-        DepositAddressMananger {
+impl<'a> DepositAddressManager<'a> {
+    pub const fn new(namespace: &'a str, setter_role: Role) -> Self {
+        DepositAddressManager {
             deposit_address: Map::new(namespace),
         }
     }
@@ -69,7 +69,7 @@ impl<'a> DepositAddressMananger<'a> {
 /// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
 /// by using a different deposit address per merchant the custodian can identify which merchant deposited.
 /// Only custodian can set this addresses.
-pub(crate) const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressMananger =
+pub(crate) const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
     DepositAddressMananger::new("custodian_deposit_address_per_merchant");
 
 pub fn set_custodian_deposit_address(
@@ -111,7 +111,7 @@ pub fn get_custodian_deposit_address(deps: Deps, merchant: &Addr) -> Result<Stri
 }
 
 /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
-pub(crate) const MERCHANT_DEPOSIT_ADDRESS: DepositAddressMananger =
+pub(crate) const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
     DepositAddressMananger::new("merchant_deposit_address");
 
 pub fn set_merchant_deposit_address(
