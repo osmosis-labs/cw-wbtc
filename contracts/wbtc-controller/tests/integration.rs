@@ -308,7 +308,7 @@ fn test_mint_and_burn() {
     wbtc.execute(
         &ExecuteMsg::SetCustodianDepositAddress {
             merchant: merchant.address(),
-            deposit_address: Some(format!("bc1{}", merchant.address())),
+            deposit_address: Some(format!("bc1custodian{}", merchant.address())),
         },
         &[],
         custodian,
@@ -318,7 +318,7 @@ fn test_mint_and_burn() {
     // set merchant deposit address
     wbtc.execute(
         &ExecuteMsg::SetMerchantDepositAddress {
-            deposit_address: Some(format!("bc1{}", merchant.address())),
+            deposit_address: Some(format!("bc1merchant{}", merchant.address())),
         },
         &[],
         merchant,
@@ -649,7 +649,7 @@ fn test_token_pause_and_unpause_transfer() {
     wbtc.execute(
         &ExecuteMsg::SetCustodianDepositAddress {
             merchant: merchant.address(),
-            deposit_address: Some(format!("bc1{}", merchant.address())),
+            deposit_address: Some(format!("bc1custodian{}", merchant.address())),
         },
         &[],
         custodian,
@@ -659,7 +659,7 @@ fn test_token_pause_and_unpause_transfer() {
     // set merchant deposit address
     wbtc.execute(
         &ExecuteMsg::SetMerchantDepositAddress {
-            deposit_address: Some(format!("bc1{}", merchant.address())),
+            deposit_address: Some(format!("bc1merchant{}", merchant.address())),
         },
         &[],
         merchant,
