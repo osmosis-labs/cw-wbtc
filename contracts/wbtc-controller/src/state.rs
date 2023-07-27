@@ -58,15 +58,23 @@ pub mod burn {
 }
 
 pub mod deposit_address {
+    use crate::tokenfactory::deposit_address::DepositAddresseTracker;
+
     use super::*;
+
+    pub const DEPOSIT_ADDRESS_TRACKER: DepositAddresseTracker =
+        DepositAddresseTracker::new("deposit_address_tracker");
 
     /// Mapping between merchant address to the corresponding custodian BTC deposit address, used in the minting process.
     /// by using a different deposit address per merchant the custodian can identify which merchant deposited.
     /// Only custodian can set this addresses.
     pub const CUSTODIAN_DEPOSIT_ADDRESS_PER_MERCHANT: DepositAddressManager =
-        DepositAddressManager::new("custodian_deposit_address_per_merchant");
+        DepositAddressManager::new(
+            "custodian_deposit_address_per_merchant",
+            &DEPOSIT_ADDRESS_TRACKER,
+        );
 
     /// mapping between merchant to the its deposit address where the asset should be moved to, used in the burning process.
     pub const MERCHANT_DEPOSIT_ADDRESS: DepositAddressManager =
-        DepositAddressManager::new("merchant_deposit_address");
+        DepositAddressManager::new("merchant_deposit_address", &DEPOSIT_ADDRESS_TRACKER);
 }

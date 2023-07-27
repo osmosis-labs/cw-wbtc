@@ -17,6 +17,9 @@ pub enum ContractError {
     )]
     DepositAddressAssociatedByNonMerchant { address: String },
 
+    #[error("Deposit address `{address}` is already associated with merchant")]
+    DepositAddressAlreadyAssociated { address: String },
+
     #[error("Custodian deposit address not found for merchant {merchant}")]
     CustodianDepositAddressNotFound { merchant: String },
 
