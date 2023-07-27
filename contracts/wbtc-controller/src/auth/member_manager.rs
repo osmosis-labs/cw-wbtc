@@ -3,7 +3,7 @@ use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
 use crate::{attrs::action_attrs, state::auth::MEMBER_MANAGER, ContractError};
 
-use super::{allow_only, Role};
+use super::{allow_only, has_no_priviledged_role, Role};
 
 /// Set the member manager address.
 pub fn set_member_manager(
@@ -12,8 +12,10 @@ pub fn set_member_manager(
     address: &str,
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::Governor], &info.sender, deps.as_ref())?;
+    let address = deps.api.addr_validate(address)?;
 
-    MEMBER_MANAGER.save(deps.storage, &deps.api.addr_validate(address)?)?;
+    has_no_priviledged_role(deps.as_ref(), &address)?;
+    MEMBER_MANAGER.save(deps.storage, &address)?;
 
     let attrs = action_attrs("set_member_manager", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))

@@ -9,6 +9,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("Multiple privileged role for single address is not allowed: `{address}`")]
+    AlreadyHasPriviledgedRole { address: String },
+
     #[error("Expect request to have updatable status: request_hash: {request_hash}")]
     UpdatableStatusExpected { request_hash: String },
 
