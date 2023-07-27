@@ -28,6 +28,22 @@ pub fn allow_only(roles: &[Role], address: &Addr, deps: Deps) -> Result<(), Cont
     Ok(())
 }
 
+/// ensure that the address is not a priviledge address, used in context of adding a new priviledge address
+fn has_no_priviledged_role(deps: Deps, address: &Addr) -> Result<(), ContractError> {
+    let is_previledged_address = governor::is_governor(deps, address)?
+        || member_manager::is_member_manager(deps, address)?
+        || merchant::is_merchant(deps, address)?
+        || custodian::is_custodian(deps, address)?;
+
+    if is_previledged_address {
+        Err(ContractError::AlreadyHasPriviledgedRole {
+            address: address.to_string(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,5 +175,79 @@ mod tests {
             deps.as_ref(),
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_has_no_priviledged_role() {
+        let mut deps = mock_dependencies();
+        let governor_address = "osmo1governor";
+        let member_manager_address = "osmo1membermanager";
+        let merchant_address = "osmo1merchant";
+        let custodian_address = "osmo1custodian";
+
+        // governor
+        has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(governor_address)).unwrap();
+
+        governor::initialize_governor(deps.as_mut(), governor_address).unwrap();
+
+        assert_eq!(
+            has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(governor_address)).unwrap_err(),
+            ContractError::AlreadyHasPriviledgedRole {
+                address: governor_address.to_string()
+            }
+        );
+
+        // member manager
+        has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(member_manager_address)).unwrap();
+
+        member_manager::set_member_manager(
+            deps.as_mut(),
+            &mock_info(governor_address, &[]),
+            member_manager_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(member_manager_address))
+                .unwrap_err(),
+            ContractError::AlreadyHasPriviledgedRole {
+                address: member_manager_address.to_string()
+            }
+        );
+
+        // merchant
+        has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(merchant_address)).unwrap();
+
+        merchant::add_merchant(
+            deps.as_mut(),
+            &mock_info(member_manager_address, &[]),
+            merchant_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(merchant_address)).unwrap_err(),
+            ContractError::AlreadyHasPriviledgedRole {
+                address: merchant_address.to_string()
+            }
+        );
+
+        // custodian
+        has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(custodian_address)).unwrap();
+
+        custodian::set_custodian(
+            deps.as_mut(),
+            &mock_info(member_manager_address, &[]),
+            custodian_address,
+        )
+        .unwrap();
+
+        assert_eq!(
+            has_no_priviledged_role(deps.as_ref(), &Addr::unchecked(custodian_address))
+                .unwrap_err(),
+            ContractError::AlreadyHasPriviledgedRole {
+                address: custodian_address.to_string()
+            }
+        );
     }
 }
