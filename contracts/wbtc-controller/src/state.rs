@@ -6,10 +6,12 @@ use crate::{
     BurnRequestStatus, MintRequestStatus,
 };
 pub mod auth {
+    use crate::auth::governor::GovernorState;
+
     use super::*;
 
     pub const CUSTODIAN: Item<Addr> = Item::new("custodian");
-    pub const GOVERNOR: Item<Addr> = Item::new("governor");
+    pub const GOVERNOR: Item<GovernorState> = Item::new("governor");
     pub const MEMBER_MANAGER: Item<Addr> = Item::new("member_manager");
 
     /// Merchants storage is a map of merchant addresses to empty values
