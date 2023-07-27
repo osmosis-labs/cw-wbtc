@@ -6,6 +6,7 @@ use cw_storage_plus::Bound;
 
 use crate::{
     attrs::action_attrs,
+    auth::has_no_priviledged_role,
     constants::{DEFAULT_LIMIT, MAX_LIMIT},
     state::{
         auth::MERCHANTS,
@@ -26,6 +27,8 @@ pub fn add_merchant(
     allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
     let validated_address = deps.api.addr_validate(address)?;
+
+    has_no_priviledged_role(deps.as_ref(), &validated_address)?;
 
     // check for duplicates
     ensure!(
@@ -193,7 +196,7 @@ mod tests {
 
         assert_eq!(
             err,
-            ContractError::DuplicatedMerchant {
+            ContractError::AlreadyHasPriviledgedRole {
                 address: merchant_address_2.to_string()
             }
         );

@@ -3,7 +3,7 @@ use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
 use crate::{attrs::action_attrs, state::auth::CUSTODIAN, ContractError};
 
-use super::{allow_only, Role};
+use super::{allow_only, has_no_priviledged_role, Role};
 
 /// Set the custodian address.
 pub fn set_custodian(
@@ -13,7 +13,10 @@ pub fn set_custodian(
 ) -> Result<Response, ContractError> {
     allow_only(&[Role::MemberManager], &info.sender, deps.as_ref())?;
 
-    CUSTODIAN.save(deps.storage, &deps.api.addr_validate(address)?)?;
+    let address = deps.api.addr_validate(address)?;
+    has_no_priviledged_role(deps.as_ref(), &address)?;
+
+    CUSTODIAN.save(deps.storage, &address)?;
 
     let attrs = action_attrs("set_custodian", vec![attr("address", address)]);
     Ok(Response::new().add_attributes(attrs))

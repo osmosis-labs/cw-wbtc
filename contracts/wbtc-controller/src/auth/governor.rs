@@ -3,13 +3,13 @@ use cosmwasm_std::{attr, Addr, Deps, DepsMut, MessageInfo, Response, StdError};
 
 use crate::{attrs::action_attrs, state::auth::GOVERNOR, ContractError};
 
-use super::{allow_only, Role};
+use super::{allow_only, has_no_priviledged_role, Role};
 
 /// Initialize the governor, can only be called once at contract instantiation
 pub fn initialize_governor(deps: DepsMut, address: &str) -> Result<(), ContractError> {
-    GOVERNOR
-        .save(deps.storage, &deps.api.addr_validate(address)?)
-        .map_err(Into::into)
+    let address = deps.api.addr_validate(address)?;
+    has_no_priviledged_role(deps.as_ref(), &address)?;
+    GOVERNOR.save(deps.storage, &address).map_err(Into::into)
 }
 
 /// Transfer the governorship to another address, only the governor can call this
