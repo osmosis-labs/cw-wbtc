@@ -305,10 +305,20 @@ mod tests {
     use cosmwasm_std::{
         attr, from_binary,
         testing::{mock_dependencies, mock_env, mock_info},
-        Addr, Coin, SubMsgResponse, SubMsgResult,
+        Addr, Coin, Empty, SubMsgResponse, SubMsgResult,
+    };
+    use osmosis_std::types::{
+        cosmos::bank::v1beta1::Metadata, osmosis::tokenfactory::v1beta1::MsgSetDenomMetadata,
     };
 
-    use crate::msg::{GetMerchantDepositAddressResponse, IsGovernorCandidateResponse};
+    use crate::{
+        msg::{GetMerchantDepositAddressResponse, IsGovernorCandidateResponse},
+        tokenfactory::{
+            burn::{BurnRequest, BurnRequestWithHash},
+            mint::{MintRequest, MintRequestWithHash},
+        },
+        BurnRequestStatus, MintRequestStatus,
+    };
 
     use super::*;
 
@@ -425,7 +435,7 @@ mod tests {
                     events: vec![],
                     data: Some(
                         MsgCreateDenomResponse {
-                            new_token_denom: token_denom,
+                            new_token_denom: token_denom.clone(),
                         }
                         .into(),
                     ),
@@ -433,6 +443,49 @@ mod tests {
             },
         )
         .unwrap_err();
+
+        // set denom metadata
+        let metadata = Metadata {
+            description: "Tokenfactory-based token backed 1:1 with Bitcoin. Completely transparent. 100% verifiable. Community led."
+             .to_string(),
+         denom_units: vec![vec![
+             // must start with `denom` with exponent 0
+             osmosis_std::types::cosmos::bank::v1beta1::DenomUnit {
+                 denom: token_denom.clone(),
+                 exponent: 0,
+                 aliases: vec!["uwbtc".to_string()],
+             },
+             osmosis_std::types::cosmos::bank::v1beta1::DenomUnit {
+                 denom: "wbtc".to_string(),
+                 exponent: 16,
+                 aliases: vec![],
+             }
+         ]]
+         .concat(),
+         base: token_denom.clone(),
+         display: "wbtc".to_string(),
+         name: "Wrapped Bitcoin".to_string(),
+         symbol: "WBTC".to_string(),
+         };
+        let res = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(governor, &[]),
+            ExecuteMsg::SetDenomMetadata {
+                metadata: metadata.clone(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            res.messages,
+            vec![SubMsg::<Empty>::new(CosmosMsg::<Empty>::from(
+                MsgSetDenomMetadata {
+                    sender: mock_env().contract.address.to_string(),
+                    metadata: Some(metadata)
+                }
+            ))]
+        );
 
         // set member manager
         execute(
@@ -766,6 +819,430 @@ mod tests {
             )
             .unwrap(),
             GetGovernorCandidateResponse { address: None }
+        );
+
+        // mint
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::IssueMintRequest {
+                amount: 10000u128.into(),
+                tx_id: "mint_tx_id".to_string(),
+            },
+        )
+        .unwrap();
+
+        // check mint request
+        let mint_request = MintRequest {
+            requester: Addr::unchecked(merchant),
+            amount: 10000u128.into(),
+            tx_id: Some("mint_tx_id".to_string()),
+            deposit_address: "custodian_deposit_address".to_string(),
+            timestamp: mock_env().block.time,
+            nonce: 0u128.into(),
+            status: MintRequestStatus::Pending,
+        };
+
+        let request_hash = mint_request.clone().data().hash().unwrap();
+
+        assert_eq!(
+            from_binary::<GetMintRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMintRequestByNonce {
+                        nonce: 0u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMintRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: mint_request.clone()
+            }
+        );
+
+        assert_eq!(
+            from_binary::<GetMintRequestByHashResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMintRequestByHash {
+                        request_hash: request_hash.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMintRequestByHashResponse {
+                request: mint_request.clone()
+            }
+        );
+
+        assert_eq!(
+            from_binary::<ListMintRequestsResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::ListMintRequests {
+                        limit: None,
+                        start_after_nonce: None,
+                        status: None
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            ListMintRequestsResponse {
+                requests: vec![MintRequestWithHash {
+                    request_hash: request_hash.to_string(),
+                    request: mint_request.clone()
+                }]
+            }
+        );
+
+        // cancel mint request
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::CancelMintRequest {
+                request_hash: request_hash.to_string(),
+            },
+        )
+        .unwrap();
+
+        // check mint request
+        let mint_request_canceled = MintRequest {
+            status: MintRequestStatus::Cancelled,
+            ..mint_request.clone()
+        };
+
+        assert_eq!(
+            from_binary::<GetMintRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMintRequestByNonce {
+                        nonce: 0u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMintRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: mint_request_canceled
+            }
+        );
+
+        // reissue and reject mint request
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::IssueMintRequest {
+                amount: 10000u128.into(),
+                tx_id: "mint_tx_id".to_string(),
+            },
+        )
+        .unwrap();
+
+        let mint_request_1 = MintRequest {
+            nonce: 1u128.into(),
+            ..mint_request.clone()
+        };
+
+        let request_hash = mint_request_1.clone().data().hash().unwrap();
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(custodian, &[]),
+            ExecuteMsg::RejectMintRequest {
+                request_hash: request_hash.to_string(),
+            },
+        )
+        .unwrap();
+
+        // check mint request
+        let mint_request_rejected = MintRequest {
+            status: MintRequestStatus::Rejected,
+            ..mint_request_1
+        };
+
+        assert_eq!(
+            from_binary::<GetMintRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMintRequestByNonce {
+                        nonce: 1u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMintRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: mint_request_rejected
+            }
+        );
+
+        // reissue and appprove
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::IssueMintRequest {
+                amount: 10000u128.into(),
+                tx_id: "mint_tx_id".to_string(),
+            },
+        )
+        .unwrap();
+
+        let mint_request_2 = MintRequest {
+            nonce: 2u128.into(),
+            ..mint_request
+        };
+
+        let request_hash = mint_request_2.clone().data().hash().unwrap();
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(custodian, &[]),
+            ExecuteMsg::ApproveMintRequest {
+                request_hash: request_hash.to_string(),
+            },
+        )
+        .unwrap();
+
+        // check mint request
+        let mint_request_approved = MintRequest {
+            status: MintRequestStatus::Approved,
+            ..mint_request_2
+        };
+
+        assert_eq!(
+            from_binary::<GetMintRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMintRequestByNonce {
+                        nonce: 2u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMintRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: mint_request_approved
+            }
+        );
+
+        // pause
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(new_governor, &[]),
+            ExecuteMsg::Pause {},
+        )
+        .unwrap();
+
+        // check pause
+        assert_eq!(
+            from_binary::<IsPausedResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::IsPaused {}).unwrap()
+            )
+            .unwrap(),
+            IsPausedResponse { is_paused: true }
+        );
+
+        let err = sudo(
+            deps.as_mut(),
+            mock_env(),
+            SudoMsg::BlockBeforeSend {
+                from: merchant.to_string(),
+                to: "someone".to_string(),
+                amount: Coin::new(1, token_denom.clone()),
+            },
+        )
+        .unwrap_err();
+
+        assert_eq!(err, ContractError::TokenTransferPaused {});
+
+        // unpause
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(new_governor, &[]),
+            ExecuteMsg::Unpause {},
+        )
+        .unwrap();
+
+        // check pause
+        assert_eq!(
+            from_binary::<IsPausedResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::IsPaused {}).unwrap()
+            )
+            .unwrap(),
+            IsPausedResponse { is_paused: false }
+        );
+
+        sudo(
+            deps.as_mut(),
+            mock_env(),
+            SudoMsg::BlockBeforeSend {
+                from: merchant.to_string(),
+                to: "someone".to_string(),
+                amount: Coin::new(1, token_denom),
+            },
+        )
+        .unwrap();
+
+        // burn
+
+        // set min burn amount
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(custodian, &[]),
+            ExecuteMsg::SetMinBurnAmount {
+                amount: 1u128.into(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetMinBurnAmountResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetMinBurnAmount {}).unwrap()
+            )
+            .unwrap(),
+            GetMinBurnAmountResponse {
+                amount: 1u128.into()
+            }
+        );
+
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::Burn {
+                amount: 10000u128.into(),
+            },
+        )
+        .unwrap();
+
+        // check burn request
+        let burn_request = BurnRequest {
+            requester: Addr::unchecked(merchant),
+            amount: 10000u128.into(),
+            tx_id: None,
+            timestamp: mock_env().block.time,
+            nonce: 0u128.into(),
+            status: BurnRequestStatus::Pending,
+            deposit_address: "merchant_deposit_address".to_string(),
+        };
+
+        let request_hash = burn_request.clone().data().hash().unwrap();
+
+        assert_eq!(
+            from_binary::<GetBurnRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetBurnRequestByNonce {
+                        nonce: 0u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetBurnRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: burn_request.clone()
+            }
+        );
+
+        assert_eq!(
+            from_binary::<GetBurnRequestByHashResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetBurnRequestByHash {
+                        request_hash: request_hash.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetBurnRequestByHashResponse {
+                request: burn_request.clone()
+            }
+        );
+
+        assert_eq!(
+            from_binary::<ListBurnRequestsResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::ListBurnRequests {
+                        limit: None,
+                        start_after_nonce: None,
+                        status: None
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            ListBurnRequestsResponse {
+                requests: vec![BurnRequestWithHash {
+                    request_hash: request_hash.to_string(),
+                    request: burn_request.clone()
+                }]
+            }
+        );
+
+        // confirm burn request
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(custodian, &[]),
+            ExecuteMsg::ConfirmBurnRequest {
+                request_hash: request_hash.to_string(),
+                tx_id: "burn_tx_id".to_string(),
+            },
+        )
+        .unwrap();
+
+        // check burn request
+        let burn_request_confirmed = BurnRequest {
+            status: BurnRequestStatus::Confirmed,
+            tx_id: Some("burn_tx_id".to_string()),
+            ..burn_request
+        };
+
+        assert_eq!(
+            from_binary::<GetBurnRequestByNonceResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetBurnRequestByNonce {
+                        nonce: 0u128.into()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetBurnRequestByNonceResponse {
+                request_hash: request_hash.to_string(),
+                request: burn_request_confirmed
+            }
         );
     }
 }
