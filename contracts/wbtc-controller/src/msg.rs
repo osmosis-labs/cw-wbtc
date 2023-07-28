@@ -24,6 +24,9 @@ pub enum ExecuteMsg {
     /// Transfer governorship of the contract to another address.
     TransferGovernorship { new_governor_address: String },
 
+    /// Claim governorship of the contract.
+    ClaimGovernorship {},
+
     /// Set member manager contract address.
     SetMemberManager { address: String },
 

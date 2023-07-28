@@ -96,6 +96,7 @@ pub fn execute(
         ExecuteMsg::TransferGovernorship {
             new_governor_address,
         } => governor::transfer_governorship(deps, &info, &new_governor_address),
+        ExecuteMsg::ClaimGovernorship {} => governor::claim_governorship(deps, info),
         ExecuteMsg::SetMemberManager { address } => {
             member_manager::set_member_manager(deps, &info, &address)
         }
