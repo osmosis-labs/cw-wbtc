@@ -24,6 +24,9 @@ pub enum ExecuteMsg {
     /// Transfer governorship of the contract to another address.
     TransferGovernorship { new_governor_address: String },
 
+    /// Claim governorship of the contract.
+    ClaimGovernorship {},
+
     /// Set member manager contract address.
     SetMemberManager { address: String },
 
@@ -191,9 +194,17 @@ pub enum QueryMsg {
     #[returns(GetGovernorResponse)]
     GetGovernor {},
 
+    /// Get governor candidate address.
+    #[returns(GetGovernorCandidateResponse)]
+    GetGovernorCandidate {},
+
     /// Check if the specified address is the governor.
     #[returns(IsGovernorResponse)]
     IsGovernor { address: String },
+
+    /// Check if the specified address is the governor candidate.
+    #[returns(IsGovernorCandidateResponse)]
+    IsGovernorCandidate { address: String },
 
     /// Get custodian deposit address of the specified merchant.
     #[returns(GetCustodianDepositAddressResponse)]
@@ -291,8 +302,18 @@ pub struct GetGovernorResponse {
 }
 
 #[cw_serde]
+pub struct GetGovernorCandidateResponse {
+    pub address: Option<Addr>,
+}
+
+#[cw_serde]
 pub struct IsGovernorResponse {
     pub is_governor: bool,
+}
+
+#[cw_serde]
+pub struct IsGovernorCandidateResponse {
+    pub is_governor_candidate: bool,
 }
 
 #[cw_serde]

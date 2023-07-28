@@ -14,9 +14,10 @@ use crate::error::{non_payable, ContractError};
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetGovernorResponse, GetMemberManagerResponse, GetMinBurnAmountResponse,
-    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
-    GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse, IsGovernorResponse,
+    GetGovernorCandidateResponse, GetGovernorResponse, GetMemberManagerResponse,
+    GetMerchantDepositAddressResponse, GetMinBurnAmountResponse, GetMintRequestByHashResponse,
+    GetMintRequestByNonceResponse, GetMintRequestsCountResponse, GetTokenDenomResponse,
+    InstantiateMsg, IsCustodianResponse, IsGovernorCandidateResponse, IsGovernorResponse,
     IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse,
     ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
@@ -96,6 +97,7 @@ pub fn execute(
         ExecuteMsg::TransferGovernorship {
             new_governor_address,
         } => governor::transfer_governorship(deps, &info, &new_governor_address),
+        ExecuteMsg::ClaimGovernorship {} => governor::claim_governorship(deps, info),
         ExecuteMsg::SetMemberManager { address } => {
             member_manager::set_member_manager(deps, &info, &address)
         }
@@ -215,8 +217,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetGovernor {} => to_binary(&GetGovernorResponse {
             address: governor::get_governor(deps)?,
         }),
+        QueryMsg::GetGovernorCandidate {} => to_binary(&GetGovernorCandidateResponse {
+            address: governor::get_governor_candidate(deps)?,
+        }),
         QueryMsg::IsGovernor { address } => to_binary(&IsGovernorResponse {
             is_governor: governor::is_governor(deps, &deps.api.addr_validate(&address)?)?,
+        }),
+        QueryMsg::IsGovernorCandidate { address } => to_binary(&IsGovernorCandidateResponse {
+            is_governor_candidate: governor::is_governor_candidate(
+                deps,
+                &deps.api.addr_validate(&address)?,
+            )?,
         }),
 
         // == deposit address ==
@@ -229,10 +240,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             })
         }
         QueryMsg::GetMerchantDepositAddress { merchant } => {
-            to_binary(&deposit_address::get_merchant_deposit_address(
-                deps,
-                &deps.api.addr_validate(&merchant)?,
-            )?)
+            to_binary(&GetMerchantDepositAddressResponse {
+                address: deposit_address::get_merchant_deposit_address(
+                    deps,
+                    &deps.api.addr_validate(&merchant)?,
+                )?,
+            })
         }
 
         // == pausing ==
@@ -290,10 +303,12 @@ pub fn sudo(deps: DepsMut, _env: Env, msg: SudoMsg) -> Result<Response, Contract
 #[cfg(test)]
 mod tests {
     use cosmwasm_std::{
-        attr,
+        attr, from_binary,
         testing::{mock_dependencies, mock_env, mock_info},
-        Coin,
+        Addr, Coin, SubMsgResponse, SubMsgResult,
     };
+
+    use crate::msg::{GetMerchantDepositAddressResponse, IsGovernorCandidateResponse};
 
     use super::*;
 
@@ -346,5 +361,411 @@ mod tests {
             .unwrap_err();
             assert_eq!(err, ContractError::NonPayable {});
         }
+    }
+
+    #[test]
+    fn smoke_test() {
+        let mut deps = mock_dependencies();
+        let instantiator = "osmo1instantiator";
+        let governor = "osmo1governor";
+        let new_governor = "osmo1newgovernor";
+        let member_manager = "osmo1membermanager";
+        let custodian = "osmo1custodian";
+        let merchant = "osmo1merchant";
+
+        instantiate(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(instantiator, &[]),
+            InstantiateMsg {
+                governor: String::from(governor),
+                subdenom: String::from("wbtc"),
+            },
+        )
+        .unwrap();
+
+        let token_denom = format!("factory/{}/wbtc", mock_env().contract.address);
+
+        reply(
+            deps.as_mut(),
+            mock_env(),
+            Reply {
+                id: CREATE_DENOM_REPLY_ID,
+                result: SubMsgResult::Ok(SubMsgResponse {
+                    events: vec![],
+                    data: Some(
+                        MsgCreateDenomResponse {
+                            new_token_denom: token_denom.clone(),
+                        }
+                        .into(),
+                    ),
+                }),
+            },
+        )
+        .unwrap();
+
+        // check token denom
+        assert_eq!(
+            from_binary::<GetTokenDenomResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetTokenDenom {}).unwrap()
+            )
+            .unwrap(),
+            GetTokenDenomResponse {
+                denom: token_denom.clone()
+            }
+        );
+
+        // no reply hanlder for this id
+        reply(
+            deps.as_mut(),
+            mock_env(),
+            Reply {
+                id: 999999999999999,
+                result: SubMsgResult::Ok(SubMsgResponse {
+                    events: vec![],
+                    data: Some(
+                        MsgCreateDenomResponse {
+                            new_token_denom: token_denom,
+                        }
+                        .into(),
+                    ),
+                }),
+            },
+        )
+        .unwrap_err();
+
+        // set member manager
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(governor, &[]),
+            ExecuteMsg::SetMemberManager {
+                address: member_manager.to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetMemberManagerResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetMemberManager {}).unwrap()
+            )
+            .unwrap(),
+            GetMemberManagerResponse {
+                address: Addr::unchecked(member_manager)
+            }
+        );
+
+        assert_eq!(
+            from_binary::<IsMemberManagerResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsMemberManager {
+                        address: member_manager.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsMemberManagerResponse {
+                is_member_manager: true
+            }
+        );
+
+        // set custodian
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(member_manager, &[]),
+            ExecuteMsg::SetCustodian {
+                address: custodian.to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetCustodianResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetCustodian {}).unwrap()
+            )
+            .unwrap(),
+            GetCustodianResponse {
+                address: Addr::unchecked(custodian)
+            }
+        );
+
+        assert_eq!(
+            from_binary::<IsCustodianResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsCustodian {
+                        address: custodian.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsCustodianResponse { is_custodian: true }
+        );
+
+        // add merchant
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(member_manager, &[]),
+            ExecuteMsg::AddMerchant {
+                address: merchant.to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<ListMerchantsResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::ListMerchants {
+                        limit: None,
+                        start_after: None
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            ListMerchantsResponse {
+                merchants: vec![Addr::unchecked(merchant)]
+            }
+        );
+
+        assert_eq!(
+            from_binary::<IsMerchantResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsMerchant {
+                        address: merchant.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsMerchantResponse { is_merchant: true }
+        );
+
+        // remove merchant
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(member_manager, &[]),
+            ExecuteMsg::RemoveMerchant {
+                address: merchant.to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<ListMerchantsResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::ListMerchants {
+                        limit: None,
+                        start_after: None
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            ListMerchantsResponse { merchants: vec![] }
+        );
+
+        assert_eq!(
+            from_binary::<IsMerchantResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsMerchant {
+                        address: merchant.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsMerchantResponse { is_merchant: false }
+        );
+
+        // re-add merchant back for later tests
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(member_manager, &[]),
+            ExecuteMsg::AddMerchant {
+                address: merchant.to_string(),
+            },
+        )
+        .unwrap();
+
+        // set merchant deposit address
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(merchant, &[]),
+            ExecuteMsg::SetMerchantDepositAddress {
+                deposit_address: Some("merchant_deposit_address".to_string()),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetMerchantDepositAddressResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetMerchantDepositAddress {
+                        merchant: merchant.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetMerchantDepositAddressResponse {
+                address: "merchant_deposit_address".to_string()
+            }
+        );
+
+        // set custodian deposit address
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(custodian, &[]),
+            ExecuteMsg::SetCustodianDepositAddress {
+                merchant: merchant.to_string(),
+                deposit_address: Some("custodian_deposit_address".to_string()),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetCustodianDepositAddressResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::GetCustodianDepositAddress {
+                        merchant: merchant.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            GetCustodianDepositAddressResponse {
+                address: "custodian_deposit_address".to_string()
+            }
+        );
+
+        // transfer governorship
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(governor, &[]),
+            ExecuteMsg::TransferGovernorship {
+                new_governor_address: new_governor.to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetGovernorResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetGovernor {}).unwrap()
+            )
+            .unwrap(),
+            GetGovernorResponse {
+                address: Addr::unchecked(governor)
+            }
+        );
+
+        assert_eq!(
+            from_binary::<IsGovernorResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsGovernor {
+                        address: governor.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsGovernorResponse { is_governor: true }
+        );
+
+        assert_eq!(
+            from_binary::<GetGovernorCandidateResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetGovernorCandidate {}).unwrap()
+            )
+            .unwrap(),
+            GetGovernorCandidateResponse {
+                address: Some(Addr::unchecked(new_governor))
+            }
+        );
+
+        // is governor candidate
+        assert_eq!(
+            from_binary::<IsGovernorCandidateResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsGovernorCandidate {
+                        address: new_governor.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsGovernorCandidateResponse {
+                is_governor_candidate: true
+            }
+        );
+
+        // claim governorship
+        execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info(new_governor, &[]),
+            ExecuteMsg::ClaimGovernorship {},
+        )
+        .unwrap();
+
+        assert_eq!(
+            from_binary::<GetGovernorResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetGovernor {}).unwrap()
+            )
+            .unwrap(),
+            GetGovernorResponse {
+                address: Addr::unchecked(new_governor)
+            }
+        );
+
+        assert_eq!(
+            from_binary::<IsGovernorResponse>(
+                &query(
+                    deps.as_ref(),
+                    mock_env(),
+                    QueryMsg::IsGovernor {
+                        address: new_governor.to_string()
+                    }
+                )
+                .unwrap()
+            )
+            .unwrap(),
+            IsGovernorResponse { is_governor: true }
+        );
+
+        assert_eq!(
+            from_binary::<GetGovernorCandidateResponse>(
+                &query(deps.as_ref(), mock_env(), QueryMsg::GetGovernorCandidate {}).unwrap()
+            )
+            .unwrap(),
+            GetGovernorCandidateResponse { address: None }
+        );
     }
 }
