@@ -14,11 +14,11 @@ use crate::error::{non_payable, ContractError};
 use crate::msg::{
     ExecuteMsg, GetBurnRequestByHashResponse, GetBurnRequestByNonceResponse,
     GetBurnRequestsCountResponse, GetCustodianDepositAddressResponse, GetCustodianResponse,
-    GetGovernorResponse, GetMemberManagerResponse, GetMinBurnAmountResponse,
-    GetMintRequestByHashResponse, GetMintRequestByNonceResponse, GetMintRequestsCountResponse,
-    GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse, IsGovernorResponse,
-    IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse, ListBurnRequestsResponse,
-    ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
+    GetGovernorCandidateResponse, GetGovernorResponse, GetMemberManagerResponse,
+    GetMinBurnAmountResponse, GetMintRequestByHashResponse, GetMintRequestByNonceResponse,
+    GetMintRequestsCountResponse, GetTokenDenomResponse, InstantiateMsg, IsCustodianResponse,
+    IsGovernorResponse, IsMemberManagerResponse, IsMerchantResponse, IsPausedResponse,
+    ListBurnRequestsResponse, ListMerchantsResponse, ListMintRequestsResponse, QueryMsg, SudoMsg,
 };
 use crate::tokenfactory::burn;
 use crate::tokenfactory::mint;
@@ -216,8 +216,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetGovernor {} => to_binary(&GetGovernorResponse {
             address: governor::get_governor(deps)?,
         }),
+        QueryMsg::GetGovernorCandidate {} => to_binary(&GetGovernorCandidateResponse {
+            address: governor::get_governor_candidate(deps)?,
+        }),
         QueryMsg::IsGovernor { address } => to_binary(&IsGovernorResponse {
             is_governor: governor::is_governor(deps, &deps.api.addr_validate(&address)?)?,
+        }),
+        QueryMsg::IsGovernorCandidate { address } => to_binary(&IsGovernorResponse {
+            is_governor: governor::is_governor_candidate(deps, &deps.api.addr_validate(&address)?)?,
         }),
 
         // == deposit address ==
