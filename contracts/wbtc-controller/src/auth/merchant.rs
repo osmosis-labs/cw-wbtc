@@ -30,14 +30,6 @@ pub fn add_merchant(
 
     has_no_priviledged_role(deps.as_ref(), &validated_address)?;
 
-    // check for duplicates
-    ensure!(
-        !is_merchant(deps.as_ref(), &validated_address)?,
-        ContractError::DuplicatedMerchant {
-            address: validated_address.to_string()
-        }
-    );
-
     MERCHANTS.save(deps.storage, validated_address, &())?;
 
     let attrs = action_attrs("add_merchant", vec![attr("address", address)]);
