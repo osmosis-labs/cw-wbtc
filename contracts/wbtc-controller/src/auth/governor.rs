@@ -163,6 +163,7 @@ mod tests {
         assert_eq!(err, ContractError::Unauthorized {});
 
         assert_eq!(get_governor(deps.as_ref()).unwrap(), governor_address);
+        assert_eq!(get_governor_candidate(deps.as_ref()).unwrap(), None);
         assert!(is_governor(deps.as_ref(), &Addr::unchecked(governor_address)).unwrap(),);
         assert!(!is_governor(deps.as_ref(), &Addr::unchecked(non_governor_address)).unwrap(),);
 
@@ -255,6 +256,7 @@ mod tests {
         );
 
         assert_eq!(get_governor(deps.as_ref()).unwrap(), new_governor_address);
+        assert_eq!(get_governor_candidate(deps.as_ref()).unwrap(), None);
         assert!(!is_governor(deps.as_ref(), &Addr::unchecked(governor_address)).unwrap(),);
         assert!(!is_governor(deps.as_ref(), &Addr::unchecked(non_governor_address)).unwrap(),);
         assert!(is_governor(deps.as_ref(), &Addr::unchecked(new_governor_address)).unwrap(),);
