@@ -45,7 +45,7 @@ wasm::execute(merge(
         msg: #{
             "set_member_manager": #{ "address": member_manager_address }
         },
-        singer_accoun: "test1" // governor
+        signer_account: "test1" // governor
     }
 ));
 
